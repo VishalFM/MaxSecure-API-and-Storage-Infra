@@ -52,5 +52,5 @@ def search(md5_signature):
     return jsonify({"status": "success", "message": "Not found in either cache"}), 200
     
 @redis_bp.route('/checkRedisConnection', methods=['GET'])
-def check_redis_connection_route(self):
+def check_redis_connection_route():
     return redis_service.check_redis_connection()
