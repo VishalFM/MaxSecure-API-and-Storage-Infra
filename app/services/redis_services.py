@@ -1,5 +1,6 @@
 import threading
-from datetime import datetime, time
+# from datetime import 
+import time
 import redis
 from config import Config
 import threading
@@ -117,19 +118,34 @@ def update_redis_cache_in_thread(record):
     redis_service.process_signature(record)
 
 def search_in_white_cache(md5_signature, result_dict, event):
-    """ Search for the MD5 in the White Cache. """
+    """Search for the MD5 in the White Cache."""
     redis_key = f"record:{md5_signature}"
+
+    print("redis_key :: ", redis_key)
     if redis_service.redis_white.exists(redis_key):
+        print("found in white")
         result_dict["found_in_white"] = True
         result_dict["status"] = 0  # Found in White Cache
         event.set()  # Trigger the termination of the other thread
+    else:
+        print("not found in white")
+        result_dict["found_in_white"] = False
+
+    print("if condition passed in white")
     time.sleep(2)  # Simulate time for processing
 
 def search_in_malware_cache(md5_signature, result_dict, event):
-    """ Search for the MD5 in the Malware Cache. """
+    """Search for the MD5 in the Malware Cache."""
     redis_key = f"record:{md5_signature}"
+    print("redis_key :: ", redis_key)
     if redis_service.redis_malware.exists(redis_key):
+        print("found in malware")
         result_dict["found_in_malware"] = True
         result_dict["status"] = 1  # Found in Malware Cache
         event.set()  # Trigger the termination of the other thread
+    else:
+        print("not found in malware")
+        result_dict["found_in_malware"] = False
+
+    print("if condition passed in malware")
     time.sleep(2)  # Simulate time for processing

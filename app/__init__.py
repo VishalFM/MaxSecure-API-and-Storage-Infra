@@ -20,6 +20,6 @@ def create_app():
     app.register_blueprint(malware_routes.malicious_urls_bp)
 
     # app.register_blueprint(malware_routes.signature_blueprint1, url_prefix='/app/pages')
-    # app.register_blueprint(redis_routes.redis_bp)
+    app.register_blueprint(redis_routes.redis_bp)
 
     return app
