@@ -33,11 +33,17 @@ class RedisService:
             response_malware = self.redis_malware.ping()
 
             if response_white and response_malware:
-                print("Successfully connected to both White and Malware Redis caches.")
+                status_message = "Successfully connected to both White and Malware Redis caches."
+                status_code = 200
             else:
-                print("Failed to connect to Redis.")
+                status_message = "Failed to connect to Redis."
+                status_code = 500
+
+            return {"status": status_message}, status_code
+
         except redis.exceptions.ConnectionError as e:
-            print(f"Error connecting to Redis: {e}")
+            return {"status": f"Error connecting to Redis: {e}"}, 500
+
 
     def add_to_cache(self, record):
         """ Add a record to the appropriate cache based on entry status. """
@@ -86,16 +92,19 @@ class RedisService:
                 except redis.exceptions.RedisError as e:
                     print(f"Error adding {record['Signature']} to Malware cache: {e}")
 
-
     def remove_from_cache(self, signature, entry_status):
-        """ Remove a signature from the cache. """
+        """ Remove a signature and its index from the cache. """
         with self.lock:
             try:
                 if entry_status == 0:
+                    # Remove the record and the index from the White cache
                     self.redis_white.delete(f"record:{signature}")
+                    self.redis_white.delete(f"index:{signature}")
                     print(f"Removed {signature} from White cache.")
                 else:
+                    # Remove the record and the index from the Malware cache
                     self.redis_malware.delete(f"record:{signature}")
+                    self.redis_malware.delete(f"index:{signature}")
                     print(f"Removed {signature} from Malware cache.")
             except redis.exceptions.RedisError as e:
                 print(f"Error removing {signature} from cache: {e}")
