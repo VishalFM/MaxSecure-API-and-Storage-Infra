@@ -22,11 +22,18 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Redis Configurations
-    REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+    REDIS_HOST = os.getenv('REDIS_HOST', 'master.msdb-redis-cluster-2.hvyzgq.aps1.cache.amazonaws.com')
     REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
-    REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', None)
+    REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', "thistokemforMSDBredis")
     REDIS_DB_MALWARE = int(os.getenv('REDIS_DB_MALWARE', 0))
     REDIS_DB_WHITE = int(os.getenv('REDIS_DB_WHITE', 1))
+
+# # Redis Configurations
+# REDIS_HOST=master.msdb-redis-cluster-2.hvyzgq.aps1.cache.amazonaws.com
+# REDIS_PORT=6379
+# REDIS_DB_WHITE=0
+# REDIS_DB_MALWARE=1
+# REDIS_PASSWORD=
 
     # Additional Settings
     API_RATE_LIMIT = os.getenv('API_RATE_LIMIT', '100/min')
