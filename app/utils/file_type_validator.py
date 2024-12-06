@@ -12,9 +12,9 @@ def validate_file_type(file_type_name):
         return f"Invalid file type format: '{file_type_name}'. Expected format: '.extension' (e.g., '.exe', '.bak')."
     
     print("2 completed")
-    existing_file_type = FileType.query.filter_by(Type=file_type_name.strip()).first()
-    if existing_file_type:
-        return f"File type '{file_type_name}' already exists."
+    # existing_file_type = FileType.query.filter_by(Type=file_type_name.strip()).first()
+    # if existing_file_type:
+    #     return f"File type '{file_type_name}' already exists."
     
     print("all performed")
     return None  # No validation errors
