@@ -6,28 +6,48 @@ def insert_file_types(file_type_names):
     """
     Insert validated file types into the database.
     """
-
-    new_file_types = [FileType(Type=file_type_name.strip()) for file_type_name in file_type_names]
+    result_status = []
+    # Normalize to lowercase for both incoming request and database comparisons
+    new_file_types = [FileType(Type=file_type_name.strip().lower()) for file_type_name in file_type_names]
+    
     try:
-        print("in insert function ____try")
-        db.session.add_all(new_file_types)
+        # Iterate over the file types to insert
+        for file_type in new_file_types:
+            # Check if the file type already exists before inserting (case-insensitive comparison)
+            existing_file_type = FileType.query.filter(FileType.Type.ilike(file_type.Type)).first()
+            
+            if existing_file_type:
+                result_status.append({"file_type": file_type.Type, "status": "already exists"})
+            else:
+                db.session.add(file_type)
+                result_status.append({"file_type": file_type.Type, "status": "to be inserted"})
+        
+        # Commit all the valid file types to the session at once
         db.session.commit()
-        return {"message": f"{len(new_file_types)} file types successfully inserted."}, True
+
+        # Final status update to inserted for those added to session
+        for status in result_status:
+            if status["status"] == "to be inserted":
+                status["status"] = "inserted"
+        
+        return {"message": f"Operation completed. {len(result_status)} file types processed."}, result_status
+
     except Exception as e:
         db.session.rollback()
-        return {"error": f"Failed to insert file types: {str(e)}"}, False
+        return {"error": f"Failed to insert file types: {str(e)}"}, result_status
 
-def validate_and_insert_file_types(data, ignore_existing_file_types=False):
+
+def validate_and_insert_file_types(data):
     """
     Combined logic for validating and inserting file types.
     """
-    print("asdas")
-    validation_result, valid_file_types = validate_file_types(data, ignore_existing_file_types)
-    print("validation function completed : validation_result : ", validation_result)
+    # Validate the file types and get errors and valid ones
+    errors, valid_file_types = validate_file_types(data)
 
-    if validation_result:
-        print("returning error msg")
-        return validation_result  # Return validation errors
+    if errors:
+        return {"error": errors}, None  # If there are errors, return them
 
-    print("Validated file types: ", valid_file_types)
-    return insert_file_types(valid_file_types)  # Insert valid file types into DB
+    # Insert valid file types and get status for each one
+    result_message, status = insert_file_types(valid_file_types)
+    
+    return {"message": result_message}, status
