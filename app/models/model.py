@@ -24,6 +24,8 @@ class Source(db.Model):
 
     # Define the reverse relationship to Signature
     signatures = db.relationship("Signature", back_populates="source")
+    # Define the reverse relationship to MaliciousURLs
+    malicious_urls = db.relationship('MaliciousURLs', back_populates='source')
 
     def __init__(self, Name):
         self.Name = Name
@@ -128,17 +130,21 @@ class Hits(db.Model):
     # Define relationship to Signature (assuming Signature model is defined)
     signature = db.relationship('Signature', back_populates='hits')
 
-# malicious url model started here
 class MaliciousURLs(db.Model):
     __tablename__ = 'MaliciousURLs'
+
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    URL = db.Column(db.Text, nullable=False)
-    VendorID = db.Column(db.Integer, nullable=False)
-    EntryStatus = db.Column(db.Integer, nullable=False, default=0)
+    URL = db.Column(db.String(255), nullable=False, unique=True)
+    VendorID = db.Column(db.Integer, db.ForeignKey('Source.ID'), nullable=False)  # ForeignKey for VendorID
+    EntryStatus = db.Column(db.String(50), nullable=False)
 
-    # Add CheckConstraint for EntryStatus
-    __table_args__ = (
-        CheckConstraint('EntryStatus IN (0, 1)', name='ck_entry_status_valid'),
-    )
+    # Relationship defined here
+    source = db.relationship('Source', back_populates='malicious_urls')
 
-    
+    def __init__(self, URL, VendorID, EntryStatus):
+        self.URL = URL
+        self.VendorID = VendorID
+        self.EntryStatus = EntryStatus
+
+    def __repr__(self):
+        return f"<MaliciousURLs(ID={self.ID}, URL={self.URL}, VendorID={self.VendorID}, EntryStatus={self.EntryStatus})>"
