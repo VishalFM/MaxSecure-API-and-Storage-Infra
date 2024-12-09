@@ -14,14 +14,14 @@ def insert_spyware_names_with_category(spyware_data):
             return {"error": "Invalid input. Each record must contain 'Name' and 'Category'."}, 400
 
         # Step 2: Normalize input categories
-        input_categories = {item['Category'].strip() for item in valid_entries}
+        input_categories = {item['Category'].strip().casefold() for item in valid_entries}  # Strip and normalize
         print("input_categories:", input_categories)
 
-        # Fetch existing categories in a single query
+        # Fetch existing categories in a single query with case-insensitive matching using casefold
         existing_categories = {
-            category.Category.lower(): category.ID
+            category.Category.casefold(): category.ID  # Use casefold for case-insensitive comparison
             for category in db.session.query(SpywareCategory).filter(
-                SpywareCategory.Category.in_(input_categories)
+                SpywareCategory.Category.in_([cat for cat in input_categories])  # No need for casefold in query here
             ).all()
         }
         print("existing_categories:", existing_categories)
@@ -33,17 +33,20 @@ def insert_spyware_names_with_category(spyware_data):
         # Step 4: Insert new categories and update the mapping
         if new_categories:
             new_category_objects = [SpywareCategory(Category=cat) for cat in new_categories]
-            db.session.bulk_save_objects(new_category_objects)
-            db.session.flush()  # Populate IDs for new categories
+            db.session.add_all(new_category_objects)
+            db.session.flush()  # Commit the session to persist new categories
+
+            print("new_category_objects:", new_category_objects)
 
             # Update existing_categories with newly added ones
             for category in new_category_objects:
-                existing_categories[category.Category] = category.ID
+                existing_categories[category.Category.casefold()] = category.ID
+
         print("existing_categories (updated):", existing_categories)
 
         # Step 5: Prepare SpywareName objects
         spyware_name_entries = set(
-            (item['Name'].strip(), existing_categories[item['Category'].strip().lower()])
+            (item['Name'].strip(), existing_categories[item['Category'].strip().casefold()])
             for item in valid_entries
         )
         print("spyware_name_entries:", spyware_name_entries)
