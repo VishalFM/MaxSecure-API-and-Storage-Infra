@@ -27,6 +27,7 @@ class Config:
     REDIS_PASSWORD = os.getenv('REDIS_PASSWORD', "thistokemforMSDBredis")
     REDIS_DB_MALWARE = int(os.getenv('REDIS_DB_MALWARE', 0))
     REDIS_DB_WHITE = int(os.getenv('REDIS_DB_WHITE', 1))
+    REDIS_DB_MALICIOUS_URL = int(os.getenv('REDIS_DB_MALICIOUS_URL', 2))
 
 # # Redis Configurations
 # REDIS_HOST=master.msdb-redis-cluster-2.hvyzgq.aps1.cache.amazonaws.com

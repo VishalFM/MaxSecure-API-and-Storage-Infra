@@ -67,6 +67,7 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
         if sources_to_insert:
             db.session.add_all(sources_to_insert)
             db.session.commit()
+        print("sources_to_insert inserted  ::", sources_to_insert)
 
         return {"message": f"{len(sources_to_insert)} sources successfully inserted."}, True
 
@@ -85,9 +86,11 @@ def get_source_ids(sources):
     Returns:
         dict: Mapping of source name strings to their IDs.
     """
+    print("sources :: ", sources)
     sources_casefolded = [source.casefold() for source in sources]
     source_name_map = {source.casefold(): source for source in sources}
-    
+    print("sources_casefolded :: ",sources_casefolded)
+    print("source_name_map :: ", source_name_map)
     return {
         source_name_map[record.Name.casefold()]: record.ID
         for record in db.session.query(Source)

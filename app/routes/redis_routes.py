@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from app.models.model import FileType
 from app.services.redis_services import search_in_malware_cache, search_in_white_cache, RedisService
 import threading
+from app.utils.Cache import generate_md5_from_url
 
 redis_bp = Blueprint('redis', __name__)
 redis_service = RedisService()
@@ -50,7 +51,45 @@ def search(md5_signature):
             SpywareNameAndCategory = redis_service.redis_malware.hget(redis_key, "SpywareNameAndCategory")
             return jsonify({"status": "success", "message": f"Found in Malware Cache: {SpywareNameAndCategory}"}), 200
     return jsonify({"status": "success", "message": "Not found in either cache"}), 200
-    
-@redis_bp.route('/checkRedisConnection', methods=['GET'])
-def check_redis_connection_route():
-    return redis_service.check_redis_connection()
+  
+@redis_bp.route('/searchMaliciousUrl', methods=['GET'])
+def search_malicious_url():
+    """
+    API endpoint to search for a URL in the Malicious URL cache.
+    Expects a query parameter 'url'.
+    """
+    try:
+        # Get the 'url' query parameter from the request
+        url = request.args.get('url')
+        if not url:
+            return jsonify({"status": "error", "message": "Missing 'url' query parameter"}), 400
+
+        md5_hash = generate_md5_from_url(url)
+        # Call the Redis service to search in the Malicious URL cache
+        entry_status = redis_service.search_in_malicious_url_cache(md5_hash)
+
+        # Handle different statuses based on the response from the cache search
+        if entry_status["status"] == "found":
+            return jsonify({
+                "status": "success",
+                "url": url,
+                "entry_status": entry_status["entry_status"],
+                "message": entry_status["message"]
+            }), 200
+        elif entry_status["status"] == "unknown":
+            return jsonify({
+                "status": "not_found",
+                "url": url,
+                "message": entry_status["message"]
+            }), 404
+        elif entry_status["status"] == "error":
+            return jsonify({
+                "status": "error",
+                "message": entry_status["message"],
+                "error": entry_status.get("error")
+            }), 500
+        else:
+            return jsonify({"status": "error", "message": "Unexpected response from the cache"}), 500
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500

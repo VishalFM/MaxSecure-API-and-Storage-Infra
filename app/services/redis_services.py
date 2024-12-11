@@ -23,6 +23,14 @@ class RedisService:
             decode_responses=True
         )
 
+        self.redis_malicious_url = redis.StrictRedis(
+            host=Config.REDIS_HOST,
+            port=Config.REDIS_PORT,
+            password=Config.REDIS_PASSWORD,
+            db=Config.REDIS_DB_MALICIOUS_URL,
+            decode_responses=True
+        )
+
         # Lock for thread-safe operations
         self.lock = threading.Lock()
 
@@ -120,6 +128,67 @@ class RedisService:
             # Remove from White cache and add to Malware cache
             self.remove_from_cache(record['Signature'], 0)
             self.add_to_cache(record)
+    
+    def add_to_malicious_url_cache(self, md5_signature, entry_status):
+        """ Store MD5 signature and entry status in the Malicious URL cache. """
+        redis_key = f"malicious_url:{md5_signature}"
+
+        malicious_url_data = {
+            "Signature": md5_signature,
+            "EntryStatus": entry_status
+        }
+
+        # Lock to ensure thread-safety
+        with self.lock:
+            try:
+                # Insert fields into the hash
+                for field, value in malicious_url_data.items():
+                    self.redis_malicious_url.hset(redis_key, field, value)
+
+                # Set the index for quick lookup
+                self.redis_malicious_url.set(f"index:{md5_signature}", redis_key)
+                print(f"Successfully added {md5_signature} to Malicious URL cache.")
+            except redis.exceptions.RedisError as e:
+                print(f"Error adding {md5_signature} to Malicious URL cache: {e}")
+
+    def search_in_malicious_url_cache(self, md5_hash):
+        """
+        Search for the MD5 of a URL in the Malicious URL cache.
+
+        Args:
+            md5_hash (str): The MD5 hash of the URL.
+
+        Returns:
+            dict: A dictionary containing the status and additional details:
+                - "status" (str): "found" or "unknown".
+                - "entry_status" (str, optional): The value associated with the MD5 hash in the cache.
+                - "message" (str): A descriptive message.
+                - "error" (str, optional): Error details if an exception occurs.
+        """
+        try:
+            # Check if the MD5 hash exists in the malicious URL cache
+            redis_key = f"malicious_url:{md5_hash}"
+            entry_status = self.redis_malicious_url.hget(redis_key, "EntryStatus")
+
+            if entry_status:
+                return {
+                    "status": "found",
+                    "entry_status": entry_status.decode('utf-8') if isinstance(entry_status, bytes) else entry_status,
+                    "message": f"The MD5 hash {md5_hash} exists in the Malicious URL cache.",
+                }
+            else:
+                return {
+                    "status": "unknown",
+                    "message": f"The MD5 hash {md5_hash} was not found in the Malicious URL cache.",
+                }
+        except redis.exceptions.RedisError as e:
+            print(f"Error searching in Malicious URL cache: {e}")
+            return {
+                "status": "error",
+                "message": "An error occurred while searching in the Malicious URL cache.",
+                "error": str(e),
+            }
+
 
 redis_service = RedisService()
 def update_redis_cache_in_thread(record):
@@ -158,3 +227,7 @@ def search_in_malware_cache(md5_signature, result_dict, event):
 
     print("if condition passed in malware")
     time.sleep(2)  # Simulate time for processing
+
+def insert_into_malicious_url( md5_signature, entry_status):
+    return redis_service.add_to_malicious_url_cache(md5_signature, entry_status)
+    

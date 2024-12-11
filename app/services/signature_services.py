@@ -90,8 +90,10 @@ def bulk_insert_signatures(signatures_data):
         validate_and_insert_sources(sources_to_validate, ignore_existing_sources=True)
 
         file_type_ids = get_file_type_ids([ft["Type"] for ft in file_types_to_validate])
+        asdasdb = [src["Name"] for src in sources_to_validate]
+        print(asdasdb )
         source_ids = get_source_ids([src["Name"] for src in sources_to_validate])
-
+        print("sour id :: ", source_ids)
         # Prepare records and map SpywareNameID to SpywareCategory
         for record in valid_records:
             category_name, spyware_name = record["SpywareName"].split(".", 1)
