@@ -93,3 +93,7 @@ def search_malicious_url():
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@redis_bp.route('/checkRedisConnection', methods=['GET'])
+def check_redis_connection_route():
+    return redis_service.check_redis_connection()
