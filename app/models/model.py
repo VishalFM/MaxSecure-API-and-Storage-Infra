@@ -137,19 +137,18 @@ class MaliciousURLs(db.Model):
     URL = db.Column(db.String(255), nullable=False, unique=True)
     VendorID = db.Column(db.Integer, db.ForeignKey('Source.ID'), nullable=False)  # ForeignKey for VendorID
     EntryStatus = db.Column(db.String(50), nullable=False)
-    Score = db.Column(db.Integer, nullable=True, default=0) 
+    Score = db.Column(db.Float, nullable=True, default=0.0)  # Changed to Float
     MD5 = db.Column(db.String(32), nullable=False, unique=True)  # MD5 hash for URL uniqueness
-
 
     # Relationship defined here
     source = db.relationship('Source', back_populates='malicious_urls')
 
-    def __init__(self, URL, VendorID, EntryStatus, Score=0, MD5=None):
+    def __init__(self, URL, VendorID, EntryStatus, Score=0.0, MD5=None):
         self.URL = URL
         self.VendorID = VendorID
         self.EntryStatus = EntryStatus
         self.Score = Score
         self.MD5 = MD5
-        
+
     def __repr__(self):
-        return f"<MaliciousURLs(ID={self.ID}, URL={self.URL}, VendorID={self.VendorID}, EntryStatus={self.EntryStatus}, score={self.Score})>"
+        return f"<MaliciousURLs(ID={self.ID}, URL={self.URL}, VendorID={self.VendorID}, EntryStatus={self.EntryStatus}, Score={self.Score})>"

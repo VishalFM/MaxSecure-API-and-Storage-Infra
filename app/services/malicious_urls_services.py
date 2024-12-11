@@ -11,7 +11,8 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
         # Preload all existing vendors and malicious URLs into memory
         vendors = {vendor.Name.lower(): vendor.ID for vendor in Source.query.all()}
         existing_urls = {
-            (url.MD5.lower(), url.VendorID): url for url in MaliciousURLs.query.all()
+            # (url.MD5.lower(), url.VendorID): url for url in MaliciousURLs.query.all()
+            (url.MD5.lower()): url for url in MaliciousURLs.query.all()
         }
 
         # Extract source names from URLs and validate them
@@ -40,13 +41,15 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                 vendor = source_ids.get(vendor_name)
 
                 # Check if the MD5 exists in the database
-                key = (md5_hash, vendor)
+                # key = (md5_hash, vendor)
+                key = (md5_hash)
 
                 # print("key :: ",key)
                 if key in existing_urls:
                     # Update EntryStatus for existing MD5
                     existing_urls[key].EntryStatus = record['EntryStatus']
-                    existing_urls[key].Score = record.get('Score', 0)  # Update the score if available
+                    existing_urls[key].Score = record.get('Score', 0.0)  # Update the score if available
+                    existing_urls[key].VendorID = vendor
                     updated_count += 1
                 else:
                     # Add MD5 to Redis cache
