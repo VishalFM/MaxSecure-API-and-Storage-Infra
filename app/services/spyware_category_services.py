@@ -52,3 +52,26 @@ def insert_spyware_categories(categories):
         # Step 9: Rollback in case of error and return an error message
         db.session.rollback()
         return {"error": f"An error occurred while inserting the spyware categories: {str(e)}"}, 500
+
+# used in adding Signature
+def get_or_create_spyware_category(category_name):
+    """
+    Check if the SpywareCategory exists; if not, create it.
+    
+    Args:
+        category_name (str): The spyware category name.
+
+    Returns:
+        int: ID of the SpywareCategory.
+    """
+    category_name_lower = category_name.casefold()
+    category = db.session.query(SpywareCategory).filter(
+        db.func.lower(SpywareCategory.Category) == category_name_lower
+    ).first()
+
+    if not category:
+        category = SpywareCategory(Category=category_name)
+        db.session.add(category)
+        db.session.flush()  # Save to DB and assign ID
+
+    return category.ID

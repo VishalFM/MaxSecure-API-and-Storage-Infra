@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from app.models.model import Source
 from app.extensions import db
 
@@ -38,6 +39,7 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
         dict: Result of the validation and insertion.
     """
     try:
+        print("Source function startedchgchg :: sources_data :: ", sources_data)
         sources_to_insert = []
         for source in sources_data:
             source_name = source.get('Name')
@@ -45,14 +47,22 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
             if not source_name:
                 continue  # Skip if there's no valid source name
 
-            # Check if the source already exists
-            existing_source = db.session.query(Source).filter(Source.Name == source_name).first()
+            # Normalize the source name for case-insensitive comparison
+            normalized_source_name = source_name.casefold()
+
+            # Check if the source already exists (case-insensitively)
+            existing_source = db.session.query(Source).filter(
+                func.lower(Source.Name) == normalized_source_name
+            ).first()
+
             if existing_source:
                 if not ignore_existing_sources:
                     return {"error": f"Source '{source_name}' already exists."}, False
             else:
                 # If the source doesn't exist, prepare to insert
                 sources_to_insert.append(Source(Name=source_name))
+
+        print("sources_to_insert ::", sources_to_insert)
 
         if sources_to_insert:
             db.session.add_all(sources_to_insert)
@@ -62,4 +72,25 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
 
     except Exception as e:
         db.session.rollback()
+        print("error :: ", str(e))
         return {"error": f"An error occurred while validating sources: {str(e)}"}, False
+
+def get_source_ids(sources):
+    """
+    Retrieves source IDs for the given source names.
+
+    Args:
+        sources (list): List of source name strings.
+
+    Returns:
+        dict: Mapping of source name strings to their IDs.
+    """
+    sources_casefolded = [source.casefold() for source in sources]
+    source_name_map = {source.casefold(): source for source in sources}
+    
+    return {
+        source_name_map[record.Name.casefold()]: record.ID
+        for record in db.session.query(Source)
+        .filter(db.func.lower(Source.Name).in_(sources_casefolded))
+        .all()
+    }

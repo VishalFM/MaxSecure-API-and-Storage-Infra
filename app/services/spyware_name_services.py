@@ -89,3 +89,28 @@ def insert_spyware_names_with_category(spyware_data):
         db.session.rollback()
         print("Transaction rolled back due to error:", e)
         return {"error": f"An error occurred while inserting spyware names: {str(e)}"}, 500
+
+# used in adding Signature
+def get_or_create_spyware_name(spyware_name, category_id):
+    """
+    Check if the SpywareName exists within a category; if not, create it.
+    
+    Args:
+        spyware_name (str): The spyware name.
+        category_id (int): ID of the corresponding SpywareCategory.
+
+    Returns:
+        int: ID of the SpywareName.
+    """
+    spyware_name_lower = spyware_name.casefold()
+    spyware_name_entry = db.session.query(SpywareName).filter(
+        db.func.lower(SpywareName.Name) == spyware_name_lower,
+        SpywareName.SpywareCategoryID == category_id
+    ).first()
+
+    if not spyware_name_entry:
+        spyware_name_entry = SpywareName(Name=spyware_name, SpywareCategoryID=category_id)
+        db.session.add(spyware_name_entry)
+        db.session.flush()  # Save to DB and assign ID
+
+    return spyware_name_entry.ID

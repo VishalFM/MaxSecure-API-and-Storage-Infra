@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from app.extensions import db
 from app.models.model import FileType
 from app.utils.file_type_validator import validate_file_types
@@ -37,12 +38,12 @@ def insert_file_types(file_type_names):
         return {"error": f"Failed to insert file types: {str(e)}"}, result_status
 
 
-def validate_and_insert_file_types(data):
+def validate_and_insert_file_types(data, ignore_existing_file_types = False):
     """
     Combined logic for validating and inserting file types.
     """
     # Validate the file types and get errors and valid ones
-    errors, valid_file_types = validate_file_types(data)
+    errors, valid_file_types = validate_file_types(data, ignore_existing_file_types)
 
     if errors:
         return {"error": errors}, None  # If there are errors, return them
@@ -51,3 +52,23 @@ def validate_and_insert_file_types(data):
     result_message, status = insert_file_types(valid_file_types)
     
     return {"message": result_message}, status
+
+def get_file_type_ids(file_types):
+    """
+    Retrieves file type IDs for the given file types.
+
+    Args:
+        file_types (list): List of file type strings.
+
+    Returns:
+        dict: Mapping of file type strings to their IDs.
+    """
+    file_types_casefolded = [file_type.casefold() for file_type in file_types]
+    file_type_name_map = {file_type.casefold(): file_type for file_type in file_types}
+    
+    return {
+        file_type_name_map[record.Type.casefold()]: record.ID
+        for record in db.session.query(FileType)
+        .filter(db.func.lower(FileType.Type).in_(file_types_casefolded))
+        .all()
+    }
