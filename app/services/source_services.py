@@ -41,6 +41,8 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
     try:
         print("Source function startedchgchg :: sources_data :: ", sources_data)
         sources_to_insert = []
+        already_processed = set()  
+
         for source in sources_data:
             source_name = source.get('Name')
 
@@ -49,6 +51,10 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
 
             # Normalize the source name for case-insensitive comparison
             normalized_source_name = source_name.casefold()
+             
+            if normalized_source_name in already_processed:
+                continue  # Skip if the source is already processed in this batch
+
 
             # Check if the source already exists (case-insensitively)
             existing_source = db.session.query(Source).filter(
@@ -61,6 +67,7 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
             else:
                 # If the source doesn't exist, prepare to insert
                 sources_to_insert.append(Source(Name=source_name))
+                already_processed.add(normalized_source_name) 
 
         print("sources_to_insert ::", sources_to_insert)
 
