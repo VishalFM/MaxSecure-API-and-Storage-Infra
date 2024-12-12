@@ -1,3 +1,4 @@
+import base64
 from flask import Blueprint, request, jsonify
 from app.models.model import FileType
 from app.services.redis_services import search_in_malware_cache, search_in_white_cache, RedisService
@@ -9,6 +10,12 @@ redis_service = RedisService()
 
 @redis_bp.route('/search/<md5_signature>', methods=['GET'])
 def search(md5_signature):
+    
+    try:
+        md5_signature = base64.b64decode(md5_signature).decode('utf-8')
+    except Exception as e:
+        return jsonify({"status": "error", "message": "Invalid Base64 encoding", "error": str(e)}), 400
+
     """Search for a record in both caches."""
     result_dict = {"found_in_white": False, "found_in_malware": False, "status": 2}  # Default Status 2 (Not Found)
     
@@ -61,8 +68,17 @@ def search_malicious_url():
     try:
         # Get the 'url' query parameter from the request
         url = request.args.get('url')
+        is_base64 = request.args.get('is_base64', 'false').lower() == 'true'
+
         if not url:
             return jsonify({"status": "error", "message": "Missing 'url' query parameter"}), 400
+
+        # Decode the URL if it's Base64 encoded
+        if is_base64:
+            try:
+                url = base64.b64decode(url).decode('utf-8')
+            except Exception as e:
+                return jsonify({"status": "error", "message": "Invalid Base64 encoding", "error": str(e)}), 400
 
         md5_hash = generate_md5_from_url(url)
         # Call the Redis service to search in the Malicious URL cache
