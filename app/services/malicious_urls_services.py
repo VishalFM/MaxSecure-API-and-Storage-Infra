@@ -1,4 +1,5 @@
 import hashlib
+from urllib.parse import urlparse
 from app.models.model import MaliciousURLs, Source
 from app.extensions import db
 from app.services.source_services import get_source_ids, validate_and_insert_sources
@@ -32,9 +33,13 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
             new_urls = []
             for record in batch:
                 normalized_url = record['URL'].strip().lower()
+                # Parse the URL to extract the domain
+                parsed_url = urlparse(normalized_url)
+                domain = parsed_url.netloc  # Extract the netloc (domain) part of the URL
 
                 # Convert URL to MD5
                 md5_hash = hashlib.md5(normalized_url.encode('utf-8')).hexdigest()
+                md5_hash_main_domain = hashlib.md5(domain.encode('utf-8')).hexdigest()
 
                 # Get the vendor ID from source_ids
                 vendor_name = record['VendorName'].strip()
@@ -53,7 +58,6 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                     updated_count += 1
                 else:
                     # Add MD5 to Redis cache
-                    redis_service.add_to_malicious_url_cache(md5_hash, record['EntryStatus'])
 
                     # Create a new MaliciousURLs record
                     new_urls.append(MaliciousURLs(
@@ -61,9 +65,12 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                         VendorID=vendor,
                         EntryStatus=record['EntryStatus'],
                         Score=record.get('Score', 0),  # Default score to 0 if not provided
-                        MD5=md5_hash  # Store MD5 hash
+                        MD5=md5_hash,  # Store MD5 hash
+                        MainDomain = domain,
+                        Main_domain_MD5 = md5_hash_main_domain
                     ))
                     inserted_count += 1
+                redis_service.add_to_malicious_url_cache(md5_hash, md5_hash_main_domain, record['EntryStatus'])
             # print("new_urls :: ", new_urls)
 
             # Bulk insert new records in the batch
@@ -78,4 +85,5 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
         }, True
     except Exception as e:
         db.session.rollback()  # Rollback in case of an error
+        print(f"An error occurred: {str(e)}")
         return {"error": f"An error occurred: {str(e)}"}, False

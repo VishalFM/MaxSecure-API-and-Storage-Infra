@@ -31,6 +31,14 @@ class RedisService:
             decode_responses=True
         )
 
+        self.redis_malicious_Main_Domain_url = redis.StrictRedis(
+            host=Config.REDIS_HOST,
+            port=Config.REDIS_PORT,
+            password=Config.REDIS_PASSWORD,
+            db=Config.REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL,
+            decode_responses=True
+        )
+
         # Lock for thread-safe operations
         self.lock = threading.Lock()
 
@@ -129,27 +137,54 @@ class RedisService:
             self.remove_from_cache(record['Signature'], 0)
             self.add_to_cache(record)
     
-    def add_to_malicious_url_cache(self, md5_signature, entry_status):
-        """ Store MD5 signature and entry status in the Malicious URL cache. """
-        redis_key = f"malicious_url:{md5_signature}"
+    def add_to_malicious_url_cache(self, md5_signature, md5_hash_main_domain, entry_status):
+        """ Store MD5 signature and entry status in the Malicious URL cache and the Malicious Main Domain URL cache. """
+        # Create keys for the malicious URL cache and the malicious main domain URL cache
+        malicious_url_key = f"malicious_url:{md5_signature}"
+        malicious_domain_key = f"malicious_domain_url:{md5_hash_main_domain}"
 
         malicious_url_data = {
             "Signature": md5_signature,
             "EntryStatus": entry_status
         }
 
+        malicious_main_domain_url_data = {
+            "Signature": md5_hash_main_domain,
+            "EntryStatus": entry_status
+        }
+
         # Lock to ensure thread-safety
         with self.lock:
             try:
-                # Insert fields into the hash
-                for field, value in malicious_url_data.items():
-                    self.redis_malicious_url.hset(redis_key, field, value)
+                # Check if the signature already exists in either cache to prevent overwriting
+                if self.redis_malicious_url.exists(malicious_url_key):
+                    print(f"{md5_signature} already exists in Malicious URL cache.")
+                else:
+                    # Insert fields into the malicious URL cache
+                    for field, value in malicious_url_data.items():
+                        self.redis_malicious_url.hset(malicious_url_key, field, value)
 
-                # Set the index for quick lookup
-                self.redis_malicious_url.set(f"index:{md5_signature}", redis_key)
-                print(f"Successfully added {md5_signature} to Malicious URL cache.")
+                    # Set the index for quick lookup
+                    self.redis_malicious_url.set(f"index:{md5_signature}", malicious_url_key)
+                    print(f"Successfully added {md5_signature} to Malicious URL cache.")
+
+                if self.redis_malicious_Main_Domain_url.exists(malicious_domain_key):
+                    print(f"{md5_hash_main_domain} already exists in Malicious Domain URL cache.")
+                else:
+                    # Insert fields into the malicious main domain URL cache
+                    for field, value in malicious_main_domain_url_data.items():
+                        self.redis_malicious_Main_Domain_url.hset(malicious_domain_key, field, value)
+
+                    # Set the index for quick lookup
+                    self.redis_malicious_Main_Domain_url.set(f"index:{md5_hash_main_domain}", malicious_domain_key)
+                    print(f"Successfully added {md5_hash_main_domain} to Malicious Main Domain URL cache.")
+                    
             except redis.exceptions.RedisError as e:
-                print(f"Error adding {md5_signature} to Malicious URL cache: {e}")
+                print(f"Error adding to malicious URL cache: {e}")
+                if 'md5_signature' in locals():
+                    print(f"Problem occurred with MD5 signature: {md5_signature}")
+                if 'md5_hash_main_domain' in locals():
+                    print(f"Problem occurred with MD5 main domain: {md5_hash_main_domain}")
 
     def search_in_malicious_url_cache(self, md5_hash):
         """

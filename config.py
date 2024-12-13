@@ -28,6 +28,7 @@ class Config:
     REDIS_DB_MALWARE = int(os.getenv('REDIS_DB_MALWARE', 0))
     REDIS_DB_WHITE = int(os.getenv('REDIS_DB_WHITE', 1))
     REDIS_DB_MALICIOUS_URL = int(os.getenv('REDIS_DB_MALICIOUS_URL', 2))
+    REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL = int(os.getenv('REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL', 3))
 
 # # Redis Configurations
 # REDIS_HOST=master.msdb-redis-cluster-2.hvyzgq.aps1.cache.amazonaws.com
