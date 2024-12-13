@@ -80,7 +80,7 @@ class RedisService:
             if record['EntryStatus'] == 0:
                 print("Adding to White cache...")
                 if self.redis_white.exists(redis_key):
-                    print(f"{record['Signature']} already exists in White cache. Skipping addition.")
+                    # print(f"{record['Signature']} already exists in White cache. Skipping addition.")
                     return
                 try:
                     # Insert fields one by one into the hash
@@ -89,13 +89,13 @@ class RedisService:
                     
                     # Set the index for quick lookup
                     self.redis_white.set(f"index:{record['Signature']}", redis_key)
-                    print(f"Successfully added {record['Signature']} to White cache.")
+                    # print(f"Successfully added {record['Signature']} to White cache.")
                 except redis.exceptions.RedisError as e:
                     print(f"Error adding {record['Signature']} to White cache: {e}")
             else:
-                print("Adding to Malware cache...")
+                # print("Adding to Malware cache...")
                 if self.redis_malware.exists(redis_key):
-                    print(f"{record['Signature']} already exists in Malware cache. Skipping addition.")
+                    # print(f"{record['Signature']} already exists in Malware cache. Skipping addition.")
                     return
                 try:
                     # Insert fields one by one into the hash
@@ -104,7 +104,7 @@ class RedisService:
                     
                     # Set the index for quick lookup
                     self.redis_malware.set(f"index:{record['Signature']}", redis_key)
-                    print(f"Successfully added {record['Signature']} to Malware cache.")
+                    # print(f"Successfully added {record['Signature']} to Malware cache.")
                 except redis.exceptions.RedisError as e:
                     print(f"Error adding {record['Signature']} to Malware cache: {e}")
 
