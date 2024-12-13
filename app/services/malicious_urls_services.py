@@ -31,6 +31,7 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
         for i in range(0, len(urls_data), batch_size):
             batch = urls_data[i:i + batch_size]
             new_urls = []
+            new_urls_hash_set = set()
             for record in batch:
                 normalized_url = record['URL'].strip().lower()
                 # Parse the URL to extract the domain
@@ -50,15 +51,19 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                 key = (md5_hash)
 
                 # print("key :: ",key)
-                if key in existing_urls:
-                    # Update EntryStatus for existing MD5
-                    existing_urls[key].EntryStatus = record['EntryStatus']
-                    existing_urls[key].Score = record.get('Score', 0.0)  # Update the score if available
-                    existing_urls[key].VendorID = vendor
-                    updated_count += 1
+                if md5_hash in existing_urls or md5_hash in new_urls_hash_set:
+                    # Update EntryStatus and other fields for existing MD5
+                    if md5_hash in existing_urls:
+                        existing_urls[md5_hash].EntryStatus = record['EntryStatus']
+                        existing_urls[md5_hash].Score = record.get('Score', 0.0)
+                        existing_urls[md5_hash].VendorID = vendor
+                        updated_count += 1
+                    # Skip duplicates in the current batch
+                    continue
                 else:
                     # Add MD5 to Redis cache
-
+                    new_urls_hash_set.add(md5_hash)
+                    
                     # Create a new MaliciousURLs record
                     new_urls.append(MaliciousURLs(
                         URL=record['URL'].strip(),
