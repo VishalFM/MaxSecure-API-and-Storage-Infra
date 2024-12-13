@@ -165,7 +165,7 @@ class RedisService:
                         self.redis_malicious_url.hset(malicious_url_key, field, value)
 
                     # Set the index for quick lookup
-                    self.redis_malicious_url.set(f"index:{md5_signature}", malicious_url_key)
+                    # self.redis_malicious_url.set(f"index:{md5_signature}", malicious_url_key)
                     print(f"Successfully added {md5_signature} to Malicious URL cache.")
 
                 if self.redis_malicious_Main_Domain_url.exists(malicious_domain_key):
@@ -176,7 +176,7 @@ class RedisService:
                         self.redis_malicious_Main_Domain_url.hset(malicious_domain_key, field, value)
 
                     # Set the index for quick lookup
-                    self.redis_malicious_Main_Domain_url.set(f"index:{md5_hash_main_domain}", malicious_domain_key)
+                    # self.redis_malicious_Main_Domain_url.set(f"index:{md5_hash_main_domain}", malicious_domain_key)
                     print(f"Successfully added {md5_hash_main_domain} to Malicious Main Domain URL cache.")
                     
             except redis.exceptions.RedisError as e:
