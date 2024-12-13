@@ -39,7 +39,7 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
         dict: Result of the validation and insertion.
     """
     try:
-        print("Source function startedchgchg :: sources_data :: ", sources_data)
+        # print("Source function startedchgchg :: sources_data :: ", sources_data)
         sources_to_insert = []
         already_processed = set()  
 
@@ -69,7 +69,7 @@ def validate_and_insert_sources(sources_data, ignore_existing_sources=False):
                 sources_to_insert.append(Source(Name=source_name))
                 already_processed.add(normalized_source_name) 
 
-        print("sources_to_insert ::", sources_to_insert)
+        # print("sources_to_insert ::", sources_to_insert)
 
         if sources_to_insert:
             db.session.add_all(sources_to_insert)
@@ -93,11 +93,11 @@ def get_source_ids(sources):
     Returns:
         dict: Mapping of source name strings to their IDs.
     """
-    print("sources :: ", sources)
+    # print("sources :: ", sources)
     sources_casefolded = [source.casefold() for source in sources]
     source_name_map = {source.casefold(): source for source in sources}
-    print("sources_casefolded :: ",sources_casefolded)
-    print("source_name_map :: ", source_name_map)
+    # print("sources_casefolded :: ",sources_casefolded)
+    # print("source_name_map :: ", source_name_map)
     return {
         source_name_map[record.Name.casefold()]: record.ID
         for record in db.session.query(Source)
