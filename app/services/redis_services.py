@@ -158,7 +158,8 @@ class RedisService:
             try:
                 # Check if the signature already exists in either cache to prevent overwriting
                 if self.redis_malicious_url.exists(malicious_url_key):
-                    print(f"{md5_signature} already exists in Malicious URL cache.")
+                    # print(f"{md5_signature} already exists in Malicious URL cache.")
+                    pass
                 else:
                     # Insert fields into the malicious URL cache
                     for field, value in malicious_url_data.items():
@@ -166,10 +167,11 @@ class RedisService:
 
                     # Set the index for quick lookup
                     # self.redis_malicious_url.set(f"index:{md5_signature}", malicious_url_key)
-                    print(f"Successfully added {md5_signature} to Malicious URL cache.")
+                    # print(f"Successfully added {md5_signature} to Malicious URL cache.")
 
                 if self.redis_malicious_Main_Domain_url.exists(malicious_domain_key):
-                    print(f"{md5_hash_main_domain} already exists in Malicious Domain URL cache.")
+                    # print(f"{md5_hash_main_domain} already exists in Malicious Domain URL cache.")
+                    pass
                 else:
                     # Insert fields into the malicious main domain URL cache
                     for field, value in malicious_main_domain_url_data.items():
@@ -177,7 +179,7 @@ class RedisService:
 
                     # Set the index for quick lookup
                     # self.redis_malicious_Main_Domain_url.set(f"index:{md5_hash_main_domain}", malicious_domain_key)
-                    print(f"Successfully added {md5_hash_main_domain} to Malicious Main Domain URL cache.")
+                    # print(f"Successfully added {md5_hash_main_domain} to Malicious Main Domain URL cache.")
                     
             except redis.exceptions.RedisError as e:
                 print(f"Error adding to malicious URL cache: {e}")
