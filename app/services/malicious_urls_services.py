@@ -63,7 +63,6 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                 else:
                     # Add MD5 to Redis cache
                     new_urls_hash_set.add(md5_hash)
-                    
                     # Create a new MaliciousURLs record
                     new_urls.append(MaliciousURLs(
                         URL=record['URL'].strip(),
@@ -85,6 +84,7 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
             # Commit the batch
             db.session.commit()
 
+        print(f"Processing completed. Inserted: {inserted_count}, Updated: {updated_count}")
         return {
             "message": f"Processing completed. Inserted: {inserted_count}, Updated: {updated_count}"
         }, True
