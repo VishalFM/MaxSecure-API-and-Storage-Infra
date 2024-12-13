@@ -63,7 +63,7 @@ class RedisService:
 
     def add_to_cache(self, record):
         """ Add a record to the appropriate cache based on entry status. """
-        redis_key = f"record:{record['Signature']}"
+        redis_key = f"{record['Signature']}"
         
         redis_data = {
             "Signature": record['Signature'],
@@ -140,8 +140,8 @@ class RedisService:
     def add_to_malicious_url_cache(self, md5_signature, md5_hash_main_domain, entry_status):
         """ Store MD5 signature and entry status in the Malicious URL cache and the Malicious Main Domain URL cache. """
         # Create keys for the malicious URL cache and the malicious main domain URL cache
-        malicious_url_key = f"malicious_url:{md5_signature}"
-        malicious_domain_key = f"malicious_domain_url:{md5_hash_main_domain}"
+        malicious_url_key = f"{md5_signature}"
+        malicious_domain_key = f"{md5_hash_main_domain}"
 
         malicious_url_data = {
             "Signature": md5_signature,
@@ -202,7 +202,7 @@ class RedisService:
         """
         try:
             # Check if the MD5 hash exists in the malicious URL cache
-            redis_key = f"malicious_url:{md5_hash}"
+            redis_key = f"{md5_hash}"
             entry_status = self.redis_malicious_url.hget(redis_key, "EntryStatus")
 
             if entry_status:
@@ -232,7 +232,7 @@ def update_redis_cache_in_thread(record):
 
 def search_in_white_cache(md5_signature, result_dict, event):
     """Search for the MD5 in the White Cache."""
-    redis_key = f"record:{md5_signature}"
+    redis_key = f"{md5_signature}"
 
     print("redis_key :: ", redis_key)
     if redis_service.redis_white.exists(redis_key):
@@ -249,7 +249,7 @@ def search_in_white_cache(md5_signature, result_dict, event):
 
 def search_in_malware_cache(md5_signature, result_dict, event):
     """Search for the MD5 in the Malware Cache."""
-    redis_key = f"record:{md5_signature}"
+    redis_key = f"{md5_signature}"
     print("redis_key :: ", redis_key)
     if redis_service.redis_malware.exists(redis_key):
         print("found in malware")
