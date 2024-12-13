@@ -1,4 +1,5 @@
 import base64
+from wsgiref.validate import validator
 from flask import Blueprint, request, jsonify
 from app.models.model import FileType
 from app.services.redis_services import search_in_malware_cache, search_in_white_cache, RedisService
@@ -10,7 +11,6 @@ redis_service = RedisService()
 
 @redis_bp.route('/search/<md5_signature>', methods=['GET'])
 def search(md5_signature):
-    
     try:
         md5_signature = base64.b64decode(md5_signature).decode('utf-8')
     except Exception as e:
@@ -73,12 +73,14 @@ def search_malicious_url():
         if not url:
             return jsonify({"status": "error", "message": "Missing 'url' query parameter"}), 400
 
-        # Decode the URL if it's Base64 encoded
-        if is_base64:
-            try:
-                url = base64.b64decode(url).decode('utf-8')
-            except Exception as e:
-                return jsonify({"status": "error", "message": "Invalid Base64 encoding", "error": str(e)}), 400
+        # Automatically detect if the URL is Base64-encoded and decode it
+        try:
+            decoded_url = base64.b64decode(url).decode('utf-8')
+            # Check if the decoded URL is valid
+            if validator.url(decoded_url):  # `validators` is a package like `validators.url` for validation
+                url = decoded_url
+        except Exception:
+            pass  # If decoding fails, assume the URL is already in plain text
 
         md5_hash = generate_md5_from_url(url)
         # Call the Redis service to search in the Malicious URL cache
