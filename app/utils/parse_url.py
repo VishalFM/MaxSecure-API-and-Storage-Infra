@@ -1,7 +1,8 @@
 import hashlib
+from urllib.parse import urlparse
 
 
-def generate_md5_from_url(url):
+def get_md5_from_url(url):
     """
     Generate an MD5 hash for a given URL.
     
@@ -17,3 +18,11 @@ def generate_md5_from_url(url):
     normalized_url = url.strip().lower()
     md5_hash = hashlib.md5(normalized_url.encode('utf-8')).hexdigest()
     return md5_hash
+
+def extract_main_domain(url):
+    """
+    Extract the main domain from a URL.
+    """
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc
+    return domain

@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify
 from app.models.model import FileType
 from app.services.redis_services import search_in_malware_cache, search_in_white_cache, RedisService
 import threading
-from app.utils.Cache import generate_md5_from_url
+from app.utils.parse_url import extract_main_domain, get_md5_from_url
 
 redis_bp = Blueprint('redis', __name__)
 redis_service = RedisService()
@@ -62,55 +62,64 @@ def search(md5_signature):
 @redis_bp.route('/searchMaliciousUrl', methods=['GET'])
 def search_malicious_url():
     """
-    API endpoint to search for a URL in the Malicious URL cache.
-    Expects a query parameter 'url'.
+    API endpoint to search for a URL in the Malicious URL cache and Domain cache.
+    Expects a query parameter 'url' in base64 encoded format.
     """
     try:
-        # Get the 'url' query parameter from the request
         url = request.args.get('url')
-        is_base64 = request.args.get('is_base64', 'false').lower() == 'true'
+        # is_base64 = request.args.get('is_base64', 'false').lower() == 'true'
 
         if not url:
-            return jsonify({"status": "error", "message": "Missing 'url' query parameter"}), 400
+            return jsonify({"status": "error", "status_code": 400}), 400
 
-        # Automatically detect if the URL is Base64-encoded and decode it
         try:
             decoded_url = base64.b64decode(url).decode('utf-8')
-            # Check if the decoded URL is valid
-            if validator.url(decoded_url):  # `validators` is a package like `validators.url` for validation
+            if validator.url(decoded_url):  
                 url = decoded_url
         except Exception:
             pass  # If decoding fails, assume the URL is already in plain text
 
-        md5_hash = generate_md5_from_url(url)
-        # Call the Redis service to search in the Malicious URL cache
-        entry_status = redis_service.search_in_malicious_url_cache(md5_hash)
+        md5_hash = get_md5_from_url(url)
+        domain = extract_main_domain(url)
+        domain_hash = get_md5_from_url(domain)
 
-        # Handle different statuses based on the response from the cache search
-        if entry_status["status"] == "found":
-            return jsonify({
-                "status": "success",
-                "url": url,
-                "entry_status": entry_status["entry_status"],
-                "message": entry_status["message"]
-            }), 200
-        elif entry_status["status"] == "unknown":
-            return jsonify({
-                "status": "not_found",
-                "url": url,
-                "message": entry_status["message"]
-            }), 404
-        elif entry_status["status"] == "error":
-            return jsonify({
-                "status": "error",
-                "message": entry_status["message"],
-                "error": entry_status.get("error")
-            }), 500
+        # Shared results dictionary
+        results = {"malicious": None, "domain": None}
+
+        # Threaded search
+        def search_malicious():
+            results["malicious"] = redis_service.search_in_malicious_url_cache(md5_hash)
+
+        def search_domain():
+            results["domain"] = redis_service.search_in_domain_cache(domain_hash)
+
+        # Create and start threads
+        malicious_thread = threading.Thread(target=search_malicious)
+        domain_thread = threading.Thread(target=search_domain)
+        malicious_thread.start()
+        domain_thread.start()
+
+        # Wait for both threads to finish
+        malicious_thread.join()
+        domain_thread.join()
+
+        malicious_result = results["malicious"]
+        domain_result = results["domain"]
+
+        if malicious_result and malicious_result["entry_status"] == 1:
+            status_code = 2
+        elif domain_result:
+            status_code = (
+                1 if domain_result["entry_status"] == 1 and malicious_result["entry_status"] == 0
+                else 0
+            )
         else:
-            return jsonify({"status": "error", "message": "Unexpected response from the cache"}), 500
+            status_code = 0
+
+        return jsonify({"status": "success", "status_code": status_code}), 200
 
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "status_code": 500}), 500
 
 @redis_bp.route('/checkRedisConnection', methods=['GET'])
 def check_redis_connection_route():

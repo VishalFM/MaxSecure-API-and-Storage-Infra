@@ -60,17 +60,12 @@ class RedisService:
         except redis.exceptions.ConnectionError as e:
             return {"status": f"Error connecting to Redis: {e}"}, 500
 
-
     def add_to_cache(self, record):
         """ Add a record to the appropriate cache based on entry status. """
         redis_key = f"{record['Signature']}"
         
         redis_data = {
-            "Signature": record['Signature'],
             "EntryStatus": record['EntryStatus'],
-            "SpywareNameID": record['SpywareNameID'],
-            "SourceID": record['SourceID'],
-            "FileTypeID": record['FileTypeID'],
             "SpywareNameAndCategory": record['SpywareNameAndCategory'],
             "HitsCount": record.get('HitsCount', 0)
         }
@@ -83,28 +78,18 @@ class RedisService:
                     # print(f"{record['Signature']} already exists in White cache. Skipping addition.")
                     return
                 try:
-                    # Insert fields one by one into the hash
                     for field, value in redis_data.items():
                         self.redis_white.hset(redis_key, field, value)
                     
-                    # Set the index for quick lookup
-                    self.redis_white.set(f"index:{record['Signature']}", redis_key)
-                    # print(f"Successfully added {record['Signature']} to White cache.")
                 except redis.exceptions.RedisError as e:
                     print(f"Error adding {record['Signature']} to White cache: {e}")
             else:
-                # print("Adding to Malware cache...")
                 if self.redis_malware.exists(redis_key):
-                    # print(f"{record['Signature']} already exists in Malware cache. Skipping addition.")
                     return
                 try:
-                    # Insert fields one by one into the hash
                     for field, value in redis_data.items():
                         self.redis_malware.hset(redis_key, field, value)
-                    
-                    # Set the index for quick lookup
-                    self.redis_malware.set(f"index:{record['Signature']}", redis_key)
-                    # print(f"Successfully added {record['Signature']} to Malware cache.")
+
                 except redis.exceptions.RedisError as e:
                     print(f"Error adding {record['Signature']} to Malware cache: {e}")
 
@@ -113,14 +98,10 @@ class RedisService:
         with self.lock:
             try:
                 if entry_status == 0:
-                    # Remove the record and the index from the White cache
-                    self.redis_white.delete(f"record:{signature}")
-                    self.redis_white.delete(f"index:{signature}")
+                    self.redis_white.delete(f"{signature}")
                     print(f"Removed {signature} from White cache.")
                 else:
-                    # Remove the record and the index from the Malware cache
-                    self.redis_malware.delete(f"record:{signature}")
-                    self.redis_malware.delete(f"index:{signature}")
+                    self.redis_malware.delete(f"{signature}")
                     print(f"Removed {signature} from Malware cache.")
             except redis.exceptions.RedisError as e:
                 print(f"Error removing {signature} from cache: {e}")
@@ -137,80 +118,47 @@ class RedisService:
             self.remove_from_cache(record['Signature'], 0)
             self.add_to_cache(record)
     
-    def add_to_malicious_url_cache(self, md5_signature, md5_hash_main_domain, entry_status):
-        """ Store MD5 signature and entry status in the Malicious URL cache and the Malicious Main Domain URL cache. """
-        # Create keys for the malicious URL cache and the malicious main domain URL cache
-        malicious_url_key = f"{md5_signature}"
-        malicious_domain_key = f"{md5_hash_main_domain}"
+    def bulk_insert_malicious_url_cache(self, url_cache_data):
+        try:
+            url_cache_dict = {
+                f"{md5_hash}": entry_status
+                for md5_hash, entry_status in url_cache_data
+                if not self.redis_malicious_url.exists(f"{md5_hash}")
+            }
 
-        malicious_url_data = {
-            "Signature": md5_signature,
-            "EntryStatus": entry_status
-        }
+            # Perform mset to insert all new keys at once
+            if url_cache_dict:
+                self.redis_malicious_url.mset(url_cache_dict)
 
-        malicious_main_domain_url_data = {
-            "Signature": md5_hash_main_domain,
-            "EntryStatus": entry_status
-        }
+            print("Bulk malicious URLs added to cache.")
 
-        # Lock to ensure thread-safety
-        with self.lock:
-            try:
-                # Check if the signature already exists in either cache to prevent overwriting
-                if self.redis_malicious_url.exists(malicious_url_key):
-                    # print(f"{md5_signature} already exists in Malicious URL cache.")
-                    pass
-                else:
-                    # Insert fields into the malicious URL cache
-                    for field, value in malicious_url_data.items():
-                        self.redis_malicious_url.hset(malicious_url_key, field, value)
+        except redis.exceptions.RedisError as e:
+            print(f"Error adding bulk malicious URLs to cache: {e}")
 
-                    # Set the index for quick lookup
-                    # self.redis_malicious_url.set(f"index:{md5_signature}", malicious_url_key)
-                    # print(f"Successfully added {md5_signature} to Malicious URL cache.")
-
-                if self.redis_malicious_Main_Domain_url.exists(malicious_domain_key):
-                    # print(f"{md5_hash_main_domain} already exists in Malicious Domain URL cache.")
-                    pass
-                else:
-                    # Insert fields into the malicious main domain URL cache
-                    for field, value in malicious_main_domain_url_data.items():
-                        self.redis_malicious_Main_Domain_url.hset(malicious_domain_key, field, value)
-
-                    # Set the index for quick lookup
-                    # self.redis_malicious_Main_Domain_url.set(f"index:{md5_hash_main_domain}", malicious_domain_key)
-                    # print(f"Successfully added {md5_hash_main_domain} to Malicious Main Domain URL cache.")
-                    
-            except redis.exceptions.RedisError as e:
-                print(f"Error adding to malicious URL cache: {e}")
-                if 'md5_signature' in locals():
-                    print(f"Problem occurred with MD5 signature: {md5_signature}")
-                if 'md5_hash_main_domain' in locals():
-                    print(f"Problem occurred with MD5 main domain: {md5_hash_main_domain}")
+    def bulk_insert_main_domain_url_cache(self, domain_cache_data):
+        try:
+            domain_cache_dict = {
+                f"{md5_hash_main_domain}": entry_status
+                for md5_hash_main_domain, entry_status in domain_cache_data
+                if not self.redis_malicious_Main_Domain_url.exists(f"{md5_hash_main_domain}")
+            }
+            if domain_cache_dict:
+                self.redis_malicious_Main_Domain_url.mset(domain_cache_dict)
+            
+            print("Bulk main domain URLs added to cache.")
+        
+        except redis.exceptions.RedisError as e:
+            print(f"Error adding bulk main domain URLs to cache: {e}")
 
     def search_in_malicious_url_cache(self, md5_hash):
-        """
-        Search for the MD5 of a URL in the Malicious URL cache.
-
-        Args:
-            md5_hash (str): The MD5 hash of the URL.
-
-        Returns:
-            dict: A dictionary containing the status and additional details:
-                - "status" (str): "found" or "unknown".
-                - "entry_status" (str, optional): The value associated with the MD5 hash in the cache.
-                - "message" (str): A descriptive message.
-                - "error" (str, optional): Error details if an exception occurs.
-        """
         try:
-            # Check if the MD5 hash exists in the malicious URL cache
             redis_key = f"{md5_hash}"
-            entry_status = self.redis_malicious_url.hget(redis_key, "EntryStatus")
+            entry_status = self.redis_malicious_url.get(redis_key)
 
-            if entry_status:
+            if entry_status is not None:  
                 return {
                     "status": "found",
-                    "entry_status": entry_status.decode('utf-8') if isinstance(entry_status, bytes) else entry_status,
+                    "entry_status": int(entry_status),  
                     "message": f"The MD5 hash {md5_hash} exists in the Malicious URL cache.",
                 }
             else:
@@ -225,7 +173,30 @@ class RedisService:
                 "message": "An error occurred while searching in the Malicious URL cache.",
                 "error": str(e),
             }
+        
+    def search_in_domain_cache(self, domain_hash):
+        try:
+            redis_key = f"{domain_hash}"
+            entry_status = self.redis_malicious_Main_Domain_url.hget(redis_key, "EntryStatus")
 
+            if entry_status is not None:  
+                return {
+                    "status": "found",
+                    "entry_status": int(entry_status),  
+                    "message": f"The domain hash {domain_hash} exists in the Domain cache.",
+                }
+            else:
+                return {
+                    "status": "unknown",
+                    "message": f"The domain hash {domain_hash} was not found in the Domain cache.",
+                }
+        except redis.exceptions.RedisError as e:
+            print(f"Error searching in Domain cache: {e}")
+            return {
+                "status": "error",
+                "message": "An error occurred while searching in the Domain cache.",
+                "error": str(e),
+            }
 
 redis_service = RedisService()
 def update_redis_cache_in_thread(record):
@@ -236,35 +207,25 @@ def search_in_white_cache(md5_signature, result_dict, event):
     """Search for the MD5 in the White Cache."""
     redis_key = f"{md5_signature}"
 
-    print("redis_key :: ", redis_key)
     if redis_service.redis_white.exists(redis_key):
-        print("found in white")
         result_dict["found_in_white"] = True
         result_dict["status"] = 0  # Found in White Cache
         event.set()  # Trigger the termination of the other thread
     else:
-        print("not found in white")
         result_dict["found_in_white"] = False
 
-    print("if condition passed in white")
     time.sleep(2)  # Simulate time for processing
 
 def search_in_malware_cache(md5_signature, result_dict, event):
     """Search for the MD5 in the Malware Cache."""
     redis_key = f"{md5_signature}"
-    print("redis_key :: ", redis_key)
+
     if redis_service.redis_malware.exists(redis_key):
-        print("found in malware")
         result_dict["found_in_malware"] = True
         result_dict["status"] = 1  # Found in Malware Cache
         event.set()  # Trigger the termination of the other thread
     else:
-        print("not found in malware")
         result_dict["found_in_malware"] = False
 
-    print("if condition passed in malware")
     time.sleep(2)  # Simulate time for processing
-
-def insert_into_malicious_url( md5_signature, entry_status):
-    return redis_service.add_to_malicious_url_cache(md5_signature, entry_status)
     
