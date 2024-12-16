@@ -30,12 +30,12 @@ class Config:
     REDIS_DB_MALICIOUS_URL = int(os.getenv('REDIS_DB_MALICIOUS_URL', 2))
     REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL = int(os.getenv('REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL', 3))
 
-# # Redis Configurations
-# REDIS_HOST=master.msdb-redis-cluster-2.hvyzgq.aps1.cache.amazonaws.com
-# REDIS_PORT=6379
-# REDIS_DB_WHITE=0
-# REDIS_DB_MALWARE=1
-# REDIS_PASSWORD=
+    # RL VT configurations
+    RL_ENDPOINT = os.getenv('RL_ENDPOINT', 'Not Configured')
+    RL_USERNAME = os.getenv('RL_USERNAME', 'Not Configured')
+    RL_PASSWORD = os.getenv('RL_USERNAME', 'Not Configured')
+    VT_ENDPOINT = os.getenv('VT_ENDPOINT', 'Not Configured')
+    VT_KEY = os.getenv('VT_KEY', 'Not Configured')
 
     # Additional Settings
     API_RATE_LIMIT = os.getenv('API_RATE_LIMIT', '100/min')

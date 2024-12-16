@@ -2,6 +2,7 @@ import base64
 from wsgiref.validate import validator
 from flask import Blueprint, request, jsonify
 from app.models.model import FileType
+from app.services.RL_VT_API_services import check_in_RL_API, check_in_VT_API
 from app.services.redis_services import search_in_malware_cache, search_in_white_cache, RedisService
 import threading
 from app.utils.parse_url import extract_main_domain, get_md5_from_url
@@ -67,6 +68,7 @@ def search_malicious_url():
     """
     try:
         url = request.args.get('url')
+        print("url > ", url)
         # is_base64 = request.args.get('is_base64', 'false').lower() == 'true'
 
         if not url:
@@ -74,14 +76,17 @@ def search_malicious_url():
 
         try:
             decoded_url = base64.b64decode(url).decode('utf-8')
-            if validator.url(decoded_url):  
-                url = decoded_url
+            url = decoded_url
         except Exception:
             pass  # If decoding fails, assume the URL is already in plain text
-
+        
+        print("decoded_url > ", decoded_url)
         md5_hash = get_md5_from_url(url)
+        print("md5 > ", md5_hash)
         domain = extract_main_domain(url)
         domain_hash = get_md5_from_url(domain)
+
+        print("url > ", domain)
 
         # Shared results dictionary
         results = {"malicious": None, "domain": None}
@@ -92,6 +97,8 @@ def search_malicious_url():
 
         def search_domain():
             results["domain"] = redis_service.search_in_domain_cache(domain_hash)
+
+        print("here")
 
         # Create and start threads
         malicious_thread = threading.Thread(target=search_malicious)
@@ -106,19 +113,35 @@ def search_malicious_url():
         malicious_result = results["malicious"]
         domain_result = results["domain"]
 
+        message = ""
         if malicious_result and malicious_result["entry_status"] == 1:
             status_code = 2
+            message = "Found in Malicious"
         elif domain_result:
             status_code = (
                 1 if domain_result["entry_status"] == 1 and malicious_result["entry_status"] == 0
                 else 0
             )
+            message = "Found in Malicious" if status_code == 1 else "" 
         else:
             status_code = 0
 
-        return jsonify({"status": "success", "status_code": status_code}), 200
+        print("Searched in Cache.")
+
+        if status_code == 0:
+            if not check_in_RL_API(url):
+                if not check_in_VT_API(url):
+                    status_code = 0
+                    message = "Not Found"
+                else:
+                    message = "Found in VT"
+            else:
+                message = "Found in RL"                    
+
+        return jsonify({"status": "success", "status_code": status_code, "message": message}), 200
 
     except Exception as e:
+        print("e > ", e)
         return jsonify({"status": "error", "status_code": 500}), 500
 
 @redis_bp.route('/checkRedisConnection', methods=['GET'])

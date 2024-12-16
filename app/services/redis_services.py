@@ -154,6 +154,7 @@ class RedisService:
         try:
             redis_key = f"{md5_hash}"
             entry_status = self.redis_malicious_url.get(redis_key)
+            print(f"entry status searching in url cache: {entry_status}..")
 
             if entry_status is not None:  
                 return {
@@ -164,12 +165,14 @@ class RedisService:
             else:
                 return {
                     "status": "unknown",
+                    "entry_status": 0,  
                     "message": f"The MD5 hash {md5_hash} was not found in the Malicious URL cache.",
                 }
         except redis.exceptions.RedisError as e:
             print(f"Error searching in Malicious URL cache: {e}")
             return {
                 "status": "error",
+                "entry_status": 0, 
                 "message": "An error occurred while searching in the Malicious URL cache.",
                 "error": str(e),
             }
@@ -178,7 +181,7 @@ class RedisService:
         try:
             redis_key = f"{domain_hash}"
             entry_status = self.redis_malicious_Main_Domain_url.hget(redis_key, "EntryStatus")
-
+            print(f"entry status searching in Domain cache: {entry_status}...")
             if entry_status is not None:  
                 return {
                     "status": "found",
@@ -188,6 +191,7 @@ class RedisService:
             else:
                 return {
                     "status": "unknown",
+                    "entry_status": 0,
                     "message": f"The domain hash {domain_hash} was not found in the Domain cache.",
                 }
         except redis.exceptions.RedisError as e:
