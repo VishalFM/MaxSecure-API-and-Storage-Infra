@@ -9,7 +9,7 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
 
-    # Register blueprints from malware
+    # malware
     app.register_blueprint(malware_routes.file_type_bp)
     app.register_blueprint(malware_routes.source_bp)
     app.register_blueprint(malware_routes.spyware_category_bp)
@@ -18,10 +18,10 @@ def create_app():
     app.register_blueprint(malware_routes.white_file_blueprint)
     app.register_blueprint(malware_routes.hits_blueprint)
 
-    # Register blueprints from malicious url
+    # malicious url
     app.register_blueprint(malicious_url_routes.malicious_urls_bp)
 
-    # Register blueprints of testing DB connections
+    # testing connections
     app.register_blueprint(malware_routes.test)
     app.register_blueprint(malware_routes.pg_connection)
 

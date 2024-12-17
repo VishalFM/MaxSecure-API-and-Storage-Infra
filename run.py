@@ -1,7 +1,6 @@
 from app import create_app
 from app.routes import malware_routes, redis_routes
 
-
 app = create_app()
 
 @app.route("/")

@@ -1,8 +1,7 @@
 import base64
-import requests  # Import the requests module
+import requests 
 from flask import json
 from config import Config
-
 
 def check_in_RL_API(url):
     api_url = Config.RL_ENDPOINT

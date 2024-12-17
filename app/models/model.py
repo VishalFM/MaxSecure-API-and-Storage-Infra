@@ -6,8 +6,6 @@ class FileType(db.Model):
 
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
     Type = db.Column(db.String(255), nullable=False)
-
-    # Define the reverse relationship to Signature
     signatures = db.relationship("Signature", back_populates="file_type")
     
     def __init__(self, Type):
@@ -17,14 +15,11 @@ class FileType(db.Model):
         return f"<FileType ID={self.ID} Type={self.Type}>"
     
 class Source(db.Model):
-    __tablename__ = 'Source'  # Table name in the database
+    __tablename__ = 'Source'
 
-    ID = db.Column(db.Integer, primary_key=True, autoincrement=True)  # Primary key (auto-incremented)
-    Name = db.Column(db.String(255), nullable=False)  # Source name (required field)
-
-    # Define the reverse relationship to Signature
+    ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    Name = db.Column(db.String(255), nullable=False)
     signatures = db.relationship("Signature", back_populates="source")
-    # Define the reverse relationship to MaliciousURLs
     malicious_urls = db.relationship('MaliciousURLs', back_populates='source')
 
     def __init__(self, Name):
@@ -38,8 +33,6 @@ class SpywareCategory(db.Model):
 
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
     Category = db.Column(db.String(255), nullable=False)
-
-    # Reverse relationship with SpywareName
     spyware_names = db.relationship('SpywareName', back_populates='spyware_category')
 
     def __init__(self, Category):
@@ -54,13 +47,8 @@ class SpywareName(db.Model):
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
     Name = db.Column(db.String(255), nullable=False)
     SpywareCategoryID = db.Column(db.Integer, db.ForeignKey('SpywareCategory.ID'), nullable=False)
-
-    # Relationship with SpywareCategory
     spyware_category = db.relationship('SpywareCategory', back_populates='spyware_names')
-    
-    # Define the reverse relationship for signatures explicitly
     signatures = db.relationship('Signature', back_populates='spyware_name')
-
 
     def __init__(self, Name, SpywareCategoryID):
         self.Name = Name
@@ -75,8 +63,8 @@ class Signature(db.Model):
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
     Signature = db.Column(db.String(255), nullable=False)
     EntryStatus = db.Column(db.Integer, nullable=False)
-    InsertDate = db.Column(db.DateTime, nullable=False, default=db.func.now())  # Runtime default
-    UpdateDate = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())  # Runtime default and update
+    InsertDate = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    UpdateDate = db.Column(db.DateTime, nullable=False, default=db.func.now(), onupdate=db.func.now())
     SpywareNameID = db.Column(db.Integer, db.ForeignKey('SpywareName.ID'), nullable=False)
     HitsCount = db.Column(db.Integer, default=0)
     SourceID = db.Column(db.Integer, db.ForeignKey('Source.ID'), nullable=False)
@@ -92,7 +80,6 @@ class Signature(db.Model):
 
     @property
     def SpywareInfo(self):
-        """Concatenate Spyware Category and Spyware Name"""
         if self.spyware_name and self.spyware_name.category:
             return f"{self.spyware_name.category.Category} - {self.spyware_name.Name}"
         return None
@@ -110,15 +97,12 @@ class Signature(db.Model):
     def __repr__(self):
         return f"<Signature(ID={self.ID}, Signature={self.Signature}, EntryStatus={self.EntryStatus}, SHA256={self.SHA256}, OS={self.OS})>"
 
-
 class WhiteFileName(db.Model):
     __tablename__ = 'WhiteFileName'
 
     ID = db.Column(db.Integer, primary_key=True)
     Name = db.Column(db.String(255), nullable=False)
     SignatureTableID = db.Column(db.Integer, db.ForeignKey('Signature.ID', ondelete='CASCADE'), nullable=False)
-    
-
     signature = db.relationship('Signature', back_populates='white_file_names')
 
     def __repr__(self):
@@ -130,8 +114,6 @@ class Hits(db.Model):
     ID = db.Column(db.Integer, primary_key=True)
     SignatureTableID = db.Column(db.Integer, db.ForeignKey('Signature.ID'), nullable=False)
     Hits = db.Column(db.Integer, nullable=False)
-
-    # Define relationship to Signature (assuming Signature model is defined)
     signature = db.relationship('Signature', back_populates='hits')
 
 class MaliciousURLs(db.Model):
@@ -139,14 +121,12 @@ class MaliciousURLs(db.Model):
 
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
     URL = db.Column(db.String(255), nullable=False, unique=True)
-    VendorID = db.Column(db.Integer, db.ForeignKey('Source.ID'), nullable=False)  # ForeignKey for VendorID
+    VendorID = db.Column(db.Integer, db.ForeignKey('Source.ID'), nullable=False)
     EntryStatus = db.Column(db.String(50), nullable=False)
-    Score = db.Column(db.Float, nullable=True, default=0.0)  # Changed to Float
-    MD5 = db.Column(db.String(32), nullable=False, unique=True)  # MD5 hash for URL uniqueness
-    MainDomain = db.Column(db.String(255), nullable=True)  # New field for Main Domain
-    Main_domain_MD5 = db.Column(db.String(32), nullable=True)  # New field for MD5 of Main Domain
-
-    # Relationship defined here
+    Score = db.Column(db.Float, nullable=True, default=0.0)
+    MD5 = db.Column(db.String(32), nullable=False, unique=True)
+    MainDomain = db.Column(db.String(255), nullable=True)
+    Main_domain_MD5 = db.Column(db.String(32), nullable=True)
     source = db.relationship('Source', back_populates='malicious_urls')
 
     def __init__(self, URL, VendorID, EntryStatus, Score=0.0, MD5=None, MainDomain=None, Main_domain_MD5=None):

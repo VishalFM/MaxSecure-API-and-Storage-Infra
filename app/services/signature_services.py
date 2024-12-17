@@ -9,15 +9,6 @@ from app.services.spyware_category_services import get_or_create_spyware_categor
 from app.services.spyware_name_services import get_or_create_spyware_name
 
 def process_and_validate_records(signatures_data):
-    """
-    Validates and filters signature records, prepares file types and sources for validation.
-    
-    Args:
-        signatures_data (list): List of signature records to process.
-
-    Returns:
-        tuple: Valid records, file types to validate, sources to validate, error message (if any).
-    """
     required_fields = {'Signature', 'EntryStatus', 'SpywareName', 'Source', 'FileType', 'SHA256', 'OS'}
     valid_records = []
     file_types_to_validate = []
@@ -36,15 +27,6 @@ def process_and_validate_records(signatures_data):
 
 
 def get_or_create_file_type(file_type):
-    """
-    Retrieves or creates a file type record in the database.
-
-    Args:
-        file_type (str): The file type to lookup or create.
-
-    Returns:
-        FileType: The existing or newly created FileType record.
-    """
     file_type_record = db.session.query(FileType).filter(FileType.Type == file_type).first()
     if not file_type_record:
         file_type_record = FileType(Type=file_type)
@@ -54,15 +36,6 @@ def get_or_create_file_type(file_type):
 
 
 def get_or_create_source(source_name):
-    """
-    Retrieves or creates a source record in the database.
-
-    Args:
-        source_name (str): The source name to lookup or create.
-
-    Returns:
-        Source: The existing or newly created Source record.
-    """
     source_record = db.session.query(Source).filter(Source.Name == source_name).first()
     if not source_record:
         source_record = Source(Name=source_name)
@@ -76,7 +49,6 @@ def bulk_insert_signatures(signatures_data):
         if error:
             return error, False
         
-        # Process FileTypes and Sources in bulk
         result_file = validate_and_insert_file_types(file_types_to_validate, ignore_existing_file_types=True)
         if result_file and "error" in result_file[0] and result_file[0]["error"]: 
             return result_file[0]["error"], False        
@@ -88,7 +60,6 @@ def bulk_insert_signatures(signatures_data):
         file_type_ids = get_file_type_ids([ft["Type"] for ft in file_types_to_validate])
         source_ids = get_source_ids([src["Name"] for src in sources_to_validate])
 
-        # Prepare records and map SpywareNameID to SpywareCategory
         for record in valid_records:
             category_name, spyware_name = record["SpywareName"].split(".", 1)
             category_id = get_or_create_spyware_category(category_name)
@@ -98,7 +69,6 @@ def bulk_insert_signatures(signatures_data):
             record["SHA256"] = record.get("SHA256")
             record["OS"] = record.get("OS")
 
-            # Redis thread for cache update (no change here)
             redis_thread = threading.Thread(target=update_redis_cache_in_thread, args=({
                 "Signature": record['Signature'],
                 "EntryStatus": record['EntryStatus'],
@@ -112,7 +82,6 @@ def bulk_insert_signatures(signatures_data):
             },))
             redis_thread.start()
 
-        # Bulk Insert or Update Signatures
         insert_query = db.text("""
             INSERT INTO "Signature" ("Signature", "EntryStatus", "SpywareNameID", "SourceID", "FileTypeID", "InsertDate", "UpdateDate", "HitsCount", "SHA256", "OS")
             VALUES (:Signature, :EntryStatus, :SpywareNameID, :SourceID, :FileTypeID, :InsertDate, :UpdateDate, :HitsCount, :SHA256, :OS)  
@@ -157,4 +126,3 @@ def bulk_insert_signatures(signatures_data):
     except Exception as e:
         db.session.rollback()
         return {"error": f"An error occurred: {str(e)}", "inserted_count": 0}, False
-    
