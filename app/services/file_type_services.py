@@ -44,8 +44,9 @@ def validate_and_insert_file_types(data, ignore_existing_file_types = False):
     """
     # Validate the file types and get errors and valid ones
     errors, valid_file_types = validate_file_types(data, ignore_existing_file_types)
-
+    print("errors > ", errors)
     if errors:
+        print("here ...")
         return {"error": errors}, None  # If there are errors, return them
 
     # Insert valid file types and get status for each one

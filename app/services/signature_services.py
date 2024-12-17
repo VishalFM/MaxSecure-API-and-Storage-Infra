@@ -77,8 +77,13 @@ def bulk_insert_signatures(signatures_data):
             return error, False
         
         # Process FileTypes and Sources in bulk
-        validate_and_insert_file_types(file_types_to_validate, ignore_existing_file_types=True)
-        validate_and_insert_sources(sources_to_validate, ignore_existing_sources=True)
+        result_file = validate_and_insert_file_types(file_types_to_validate, ignore_existing_file_types=True)
+        if result_file and "error" in result_file[0] and result_file[0]["error"]: 
+            return result_file[0]["error"], False        
+        
+        result_source = validate_and_insert_sources(sources_to_validate, ignore_existing_sources=True)
+        if result_source and "error" in result_source[0] and result_source[0]["error"]: 
+            return result_source[0]["error"], False      
 
         file_type_ids = get_file_type_ids([ft["Type"] for ft in file_types_to_validate])
         source_ids = get_source_ids([src["Name"] for src in sources_to_validate])
@@ -90,8 +95,8 @@ def bulk_insert_signatures(signatures_data):
             record['SpywareNameID'] = get_or_create_spyware_name(spyware_name, category_id)
             record["FileTypeID"] = file_type_ids.get(record["FileType"])
             record["SourceID"] = source_ids.get(record["Source"])
-            record["SHA256"] = record.get("SHA256") 
-            record["OS"] = record.get("OS")  
+            record["SHA256"] = record.get("SHA256")
+            record["OS"] = record.get("OS")
 
             # Redis thread for cache update (no change here)
             redis_thread = threading.Thread(target=update_redis_cache_in_thread, args=({
@@ -152,3 +157,4 @@ def bulk_insert_signatures(signatures_data):
     except Exception as e:
         db.session.rollback()
         return {"error": f"An error occurred: {str(e)}", "inserted_count": 0}, False
+    
