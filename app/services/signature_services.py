@@ -18,7 +18,7 @@ def process_and_validate_records(signatures_data):
     Returns:
         tuple: Valid records, file types to validate, sources to validate, error message (if any).
     """
-    required_fields = {'Signature', 'EntryStatus', 'SpywareName', 'Source', 'FileType', 'SHA256', 'os'}
+    required_fields = {'Signature', 'EntryStatus', 'SpywareName', 'Source', 'FileType', 'SHA256', 'OS'}
     valid_records = []
     file_types_to_validate = []
     sources_to_validate = []
@@ -91,7 +91,7 @@ def bulk_insert_signatures(signatures_data):
             record["FileTypeID"] = file_type_ids.get(record["FileType"])
             record["SourceID"] = source_ids.get(record["Source"])
             record["SHA256"] = record.get("SHA256") 
-            record["os"] = record.get("os")  
+            record["OS"] = record.get("OS")  
 
             # Redis thread for cache update (no change here)
             redis_thread = threading.Thread(target=update_redis_cache_in_thread, args=({
@@ -103,14 +103,14 @@ def bulk_insert_signatures(signatures_data):
                 "HitsCount": record.get('HitsCount', 0),
                 "SpywareNameAndCategory": record['SpywareName'],
                 "SHA256": record["SHA256"],  
-                "os": record["os"]  
+                "OS": record["OS"]  
             },))
             redis_thread.start()
 
         # Bulk Insert or Update Signatures
         insert_query = db.text("""
-            INSERT INTO "Signature" ("Signature", "EntryStatus", "SpywareNameID",  "SourceID", "FileTypeID", "InsertDate", "UpdateDate", "HitsCount", "SHA256", "os")
-            VALUES (:Signature, :EntryStatus, :SpywareNameID, :SourceID, :FileTypeID, :InsertDate, :UpdateDate, :HitsCount, :SHA256, :os)  
+            INSERT INTO "Signature" ("Signature", "EntryStatus", "SpywareNameID",  "SourceID", "FileTypeID", "InsertDate", "UpdateDate", "HitsCount", "SHA256", "OS")
+            VALUES (:Signature, :EntryStatus, :SpywareNameID, :SourceID, :FileTypeID, :InsertDate, :UpdateDate, :HitsCount, :SHA256, :OS)  
             ON CONFLICT("Signature") 
             DO UPDATE SET
                 "EntryStatus" = EXCLUDED."EntryStatus",
@@ -119,8 +119,8 @@ def bulk_insert_signatures(signatures_data):
                 "FileTypeID" = EXCLUDED."FileTypeID",
                 "UpdateDate" = EXCLUDED."UpdateDate",
                 "HitsCount" = EXCLUDED."HitsCount",
-                "SHA256" = EXCLUDED."SHA256",  -- Added SHA256 to update query
-                "os" = EXCLUDED."os";  -- Added os to update query
+                "SHA256" = EXCLUDED."SHA256",  
+                "OS" = EXCLUDED."OS";  
         """)
 
         current_timestamp = datetime.now()
@@ -139,7 +139,7 @@ def bulk_insert_signatures(signatures_data):
                 "UpdateDate": current_timestamp,
                 "HitsCount": record.get('HitsCount', 0),
                 "SHA256": record["SHA256"],  
-                "os": record["os"]  
+                "OS": record["OS"]  
             } for record in batch]
 
             db.session.execute(insert_query, batch_data)
