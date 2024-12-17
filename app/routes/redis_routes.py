@@ -65,38 +65,39 @@ def search_malicious_url():
     try:
         url = request.args.get('url')
         if not url:
-            return 0, 200
+            return "0", 200  # Return the status as a string with the correct status code
 
         try:
             url = base64.b64decode(url).decode('utf-8')
         except Exception:
-            return 0, 500
+            return "0", 500  # Return the status as a string with the error code
 
         md5_hash = get_md5_from_url(url)
         domain_hash = get_md5_from_url(extract_main_domain(url))
 
         results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
-        if results_malicious and results_malicious["entry_status"] == 1:
-            return 2, 200
+        if results_malicious == 1:
+            return "2", 200  # Malicious URL found
 
         print("results_malicious > ", results_malicious)
 
         results_domain = redis_service.search_in_domain_cache(domain_hash)
-        if results_domain and results_domain["entry_status"] == 1 :
-            return 1, 200
         print("results_domain > ", results_domain)
+        if results_domain == 1:
+            return "1", 200  # Malicious domain found
+
         print("called ...!")
-        #RT
-        #VT
-        # Only check APIs if nothing found in cache
+
+        # Check external APIs if nothing is found in cache
         if check_in_RL_API(url) or check_in_VT_API(url):
-            return 2, 200
+            return "2", 200  # Malicious URL found from external API
 
-        return 0, 200
+        return "0", 200  # No malicious content found
 
-    except Exception:
-        return 0, 200
-    
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        return "0", 500  # Return an error status in case of failure
+
 @redis_bp.route('/checkRedisConnection', methods=['GET'])
 def check_redis_connection_route():
     return redis_service.check_redis_connection()
