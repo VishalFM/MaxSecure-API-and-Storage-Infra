@@ -81,6 +81,8 @@ class Signature(db.Model):
     HitsCount = db.Column(db.Integer, default=0)
     SourceID = db.Column(db.Integer, db.ForeignKey('Source.ID'), nullable=False)
     FileTypeID = db.Column(db.Integer, db.ForeignKey('FileType.ID'), nullable=False)
+    SHA256 = db.Column(db.String(300))  
+    os = db.Column(db.String(50))       
 
     spyware_name = db.relationship("SpywareName", back_populates="signatures")
     source = db.relationship("Source", back_populates="signatures")
@@ -95,16 +97,18 @@ class Signature(db.Model):
             return f"{self.spyware_name.category.Category} - {self.spyware_name.Name}"
         return None
 
-    def __init__(self, Signature, EntryStatus, SpywareNameID, SourceID, FileTypeID, HitsCount=0):
+    def __init__(self, Signature, EntryStatus, SpywareNameID, SourceID, FileTypeID, HitsCount=0, SHA256=None, os=None):
         self.Signature = Signature
         self.EntryStatus = EntryStatus
         self.SpywareNameID = SpywareNameID
         self.SourceID = SourceID
         self.FileTypeID = FileTypeID
         self.HitsCount = HitsCount
+        self.SHA256 = SHA256
+        self.os = os
 
     def __repr__(self):
-        return f"<Signature(ID={self.ID}, Signature={self.Signature}, EntryStatus={self.EntryStatus})>"
+        return f"<Signature(ID={self.ID}, Signature={self.Signature}, EntryStatus={self.EntryStatus}, SHA256={self.SHA256}, os={self.os})>"
 
 
 class WhiteFileName(db.Model):
