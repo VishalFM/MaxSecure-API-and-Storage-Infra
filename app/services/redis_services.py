@@ -158,16 +158,16 @@ class RedisService:
                 # search in domain cache
                 print("redis_client.get(redis_key) > ", redis_client.get(redis_key))
                 if redis_client.get(redis_key):
-                    return 1
+                    return True
             else:
                 #search in malicious cache
                 print("redis_client.get(redis_key) > ", redis_client.get(redis_key))
                 if redis_client.get(redis_key):
-                    return 2
-            return 0 
+                    return True
+            return False
             
         except redis.exceptions.RedisError as e:
-            return 0
+            return False
 
     def search_in_malicious_url_cache(self, md5_hash):
         return self._common_cache_search(

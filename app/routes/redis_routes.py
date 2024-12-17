@@ -76,13 +76,14 @@ def search_malicious_url():
         domain_hash = get_md5_from_url(extract_main_domain(url))
 
         results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
+        print("results_malicious > ", results_malicious)
         if results_malicious == 1:
             return "2", 200  # Malicious URL found
 
-        print("results_malicious > ", results_malicious)
 
         results_domain = redis_service.search_in_domain_cache(domain_hash)
         print("results_domain > ", results_domain)
+        
         if results_domain == 1:
             return "1", 200  # Malicious domain found
 
