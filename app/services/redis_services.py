@@ -150,58 +150,38 @@ class RedisService:
         except redis.exceptions.RedisError as e:
             print(f"Error adding bulk main domain URLs to cache: {e}")
 
-    def search_in_malicious_url_cache(self, md5_hash):
+    def _common_cache_search(self, hash_value, redis_client, is_domain=False):
         try:
-            redis_key = f"{md5_hash}"
-            entry_status = self.redis_malicious_url.get(redis_key)
-
-            if entry_status is not None:  
-                return {
-                    "status": "found",
-                    "entry_status": int(entry_status),  
-                    "message": f"The MD5 hash {md5_hash} exists in the Malicious URL cache.",
-                }
+            print("hash_value", hash_value)
+            redis_key = str(hash_value)
+            if is_domain:
+                # search in domain cache
+                print("redis_client.get(redis_key) > ", redis_client.get(redis_key))
+                if redis_client.get(redis_key):
+                    return 1
             else:
-                return {
-                    "status": "unknown",
-                    "entry_status": 0,  
-                    "message": f"The MD5 hash {md5_hash} was not found in the Malicious URL cache.",
-                }
+                #search in malicious cache
+                print("redis_client.get(redis_key) > ", redis_client.get(redis_key))
+                if redis_client.get(redis_key):
+                    return 2
+            return 0 
+            
         except redis.exceptions.RedisError as e:
-            print(f"Error searching in Malicious URL cache: {e}")
-            return {
-                "status": "error",
-                "entry_status": 0, 
-                "message": "An error occurred while searching in the Malicious URL cache.",
-                "error": str(e),
-            }
+            return 0
+
+    def search_in_malicious_url_cache(self, md5_hash):
+        return self._common_cache_search(
+            md5_hash, 
+            self.redis_malicious_url, 
+        )
         
     def search_in_domain_cache(self, domain_hash):
-        try:
-            redis_key = f"{domain_hash}"
-            entry_status = self.redis_malicious_Main_Domain_url.hget(redis_key, "EntryStatus")
-
-            if entry_status is not None:  
-                return {
-                    "status": "found",
-                    "entry_status": int(entry_status),  
-                    "message": f"The domain hash {domain_hash} exists in the Domain cache.",
-                }
-            else:
-                return {
-                    "status": "unknown",
-                    "entry_status": 0,
-                    "message": f"The domain hash {domain_hash} was not found in the Domain cache.",
-                }
-        except redis.exceptions.RedisError as e:
-            print(f"Error searching in Domain cache: {e}")
-            return {
-                "status": "error",
-                "entry_status": 0, 
-                "message": "An error occurred while searching in the Domain cache.",
-                "error": str(e),
-            }
-
+        return self._common_cache_search(
+            domain_hash, 
+            self.redis_malicious_Main_Domain_url, 
+            is_domain=True
+        )
+    
 redis_service = RedisService()
 def update_redis_cache_in_thread(record):
     """ Helper function to run Redis operations in a separate thread. """

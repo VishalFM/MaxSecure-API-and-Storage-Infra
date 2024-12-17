@@ -18,14 +18,14 @@ def check_in_RL_API(url):
     }
 
     try:
-        response = requests.post(api_url, json=payload, auth=(username, password))  # Use requests.post
+        response = requests.post(api_url, json=payload, auth=(username, password))  
         response.raise_for_status()
         response_data = response.json()
         classification = response_data.get("rl", {}).get("classification", "")
 
         return classification in ["malicious", "suspicious"]
             
-    except requests.exceptions.RequestException as e:  # Use requests.exceptions
+    except requests.exceptions.RequestException as e:  
         print(f"An error occurred while making the API call: {e}")
         return False
     except json.JSONDecodeError:
@@ -36,15 +36,14 @@ def check_in_VT_API(url):
     encoded_url = base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
     api_url = Config.VT_ENDPOINT + encoded_url
     api_key = Config.VT_KEY
-
-    # Set up headers with the API key
+    print("api_url > ", api_url)
     headers = {
         "accept": "application/json",
         "x-apikey": api_key
     }
     print("in vt")
     try:
-        response = requests.get(api_url, headers=headers)  # Use requests.get
+        response = requests.get(api_url, headers=headers)  
         response.raise_for_status()
 
         data = response.json()
@@ -59,7 +58,7 @@ def check_in_VT_API(url):
 
         return malicious_count + suspicious_count >= 5 and thread_names
 
-    except requests.exceptions.RequestException as e:  # Use requests.exceptions
+    except requests.exceptions.RequestException as e:  
         print(f"Request failed: {e}")
         return False
     except KeyError as e:

@@ -62,88 +62,41 @@ def search(md5_signature):
   
 @redis_bp.route('/searchMaliciousUrl', methods=['GET'])
 def search_malicious_url():
-    """
-    API endpoint to search for a URL in the Malicious URL cache and Domain cache.
-    Expects a query parameter 'url' in base64 encoded format.
-    """
     try:
         url = request.args.get('url')
-        print("url > ", url)
-        # is_base64 = request.args.get('is_base64', 'false').lower() == 'true'
-
         if not url:
-            return jsonify({"status": "error", "status_code": 400}), 400
+            return 0, 200
 
         try:
-            decoded_url = base64.b64decode(url).decode('utf-8')
-            url = decoded_url
+            url = base64.b64decode(url).decode('utf-8')
         except Exception:
-            pass  # If decoding fails, assume the URL is already in plain text
-        
-        print("decoded_url > ", decoded_url)
+            return 0, 500
+
         md5_hash = get_md5_from_url(url)
-        print("md5 > ", md5_hash)
-        domain = extract_main_domain(url)
-        domain_hash = get_md5_from_url(domain)
+        domain_hash = get_md5_from_url(extract_main_domain(url))
 
-        print("url > ", domain)
+        results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
+        if results_malicious and results_malicious["entry_status"] == 1:
+            return 2, 200
 
-        # Shared results dictionary
-        results = {"malicious": None, "domain": None}
+        print("results_malicious > ", results_malicious)
 
-        # Threaded search
-        def search_malicious():
-            results["malicious"] = redis_service.search_in_malicious_url_cache(md5_hash)
+        results_domain = redis_service.search_in_domain_cache(domain_hash)
+        if results_domain and results_domain["entry_status"] == 1 :
+            return 1, 200
+        print("results_domain > ", results_domain)
+        print("called ...!")
+        #RT
+        #VT
+        # Only check APIs if nothing found in cache
+        if check_in_RL_API(url) or check_in_VT_API(url):
+            return 2, 200
 
-        def search_domain():
-            results["domain"] = redis_service.search_in_domain_cache(domain_hash)
+        return 0, 200
 
-        print("here")
-
-        # Create and start threads
-        malicious_thread = threading.Thread(target=search_malicious)
-        domain_thread = threading.Thread(target=search_domain)
-        malicious_thread.start()
-        domain_thread.start()
-
-        # Wait for both threads to finish
-        malicious_thread.join()
-        domain_thread.join()
-
-        malicious_result = results["malicious"]
-        domain_result = results["domain"]
-
-        message = ""
-        if malicious_result and malicious_result["entry_status"] == 1:
-            status_code = 2
-            message = "Found in Malicious"
-        elif domain_result:
-            status_code = (
-                1 if domain_result["entry_status"] == 1 and malicious_result["entry_status"] == 0
-                else 0
-            )
-            message = "Found in Malicious" if status_code == 1 else "" 
-        else:
-            status_code = 0
-
-        print("Searched in Cache.")
-
-        if status_code == 0:
-            if not check_in_RL_API(url):
-                if not check_in_VT_API(url):
-                    status_code = 0
-                    message = "Not Found"
-                else:
-                    message = "Found in VT"
-            else:
-                message = "Found in RL"                    
-
-        return jsonify({"status": "success", "status_code": status_code, "message": message}), 200
-
-    except Exception as e:
-        print("e > ", e)
-        return jsonify({"status": "error", "status_code": 500}), 500
-
+    except Exception:
+        return 0, 200
+    
 @redis_bp.route('/checkRedisConnection', methods=['GET'])
 def check_redis_connection_route():
     return redis_service.check_redis_connection()

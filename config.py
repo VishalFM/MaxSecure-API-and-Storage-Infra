@@ -33,7 +33,7 @@ class Config:
     # RL VT configurations
     RL_ENDPOINT = os.getenv('RL_ENDPOINT', 'Not Configured')
     RL_USERNAME = os.getenv('RL_USERNAME', 'Not Configured')
-    RL_PASSWORD = os.getenv('RL_USERNAME', 'Not Configured')
+    RL_PASSWORD = os.getenv('RL_PASSWORD', 'Not Configured')
     VT_ENDPOINT = os.getenv('VT_ENDPOINT', 'Not Configured')
     VT_KEY = os.getenv('VT_KEY', 'Not Configured')
 
