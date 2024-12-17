@@ -36,27 +36,19 @@ def check_in_VT_API(url):
     encoded_url = base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
     api_url = Config.VT_ENDPOINT + encoded_url
     api_key = Config.VT_KEY
-    print("api_url > ", api_url)
     headers = {
         "accept": "application/json",
         "x-apikey": api_key
     }
-    print("in vt")
     try:
         response = requests.get(api_url, headers=headers)  
         response.raise_for_status()
 
         data = response.json()
         
-        print("data > ", data["data"]["attributes"]["last_analysis_stats"]["malicious"])
-        print("")
         malicious_count = data["data"]["attributes"]["last_analysis_stats"]["malicious"]
         suspicious_count = data["data"]["attributes"]["last_analysis_stats"]["suspicious"]
         thread_names = data["data"]["attributes"]["threat_names"]
-        
-        print("malicious_count > ", malicious_count)
-        print("suspicious_count > ", suspicious_count)
-        print("thread_names > ", thread_names)
 
         return malicious_count + suspicious_count >= 5 and thread_names
     except requests.exceptions.RequestException as e:  

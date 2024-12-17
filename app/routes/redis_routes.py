@@ -73,20 +73,14 @@ def search_malicious_url():
             url = base64.b64decode(url).decode('utf-8')
         except Exception:
             return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 500  # Include error details in JSON
-        print("url > ", url)
         md5_hash = get_md5_from_url(url)
-        print("md5_hash > ", md5_hash)
-        print("extract_main_domain(url) > ",extract_main_domain(url))
         domain_hash = get_md5_from_url(get_main_domain(url))
 
-        print("md5_hash >",md5_hash)
         results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
-        print("results_malicious > ", results_malicious)
         if results_malicious == 1:
             return jsonify({"status": 2, "message": "Malicious URL found"}), 200
 
         results_domain = redis_service.search_in_domain_cache(domain_hash)
-        print("results_domain > ", results_domain)
         
         if results_domain == 1:
             return jsonify({"status": 1, "message": "Malicious domain found"}), 200
