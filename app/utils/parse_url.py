@@ -1,5 +1,6 @@
 import hashlib
 from urllib.parse import urlparse
+import tldextract
 
 
 def get_md5_from_url(url):
@@ -26,3 +27,10 @@ def extract_main_domain(url):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     return domain
+
+def get_main_domain(url):
+    # Extract domain components
+    extracted = tldextract.extract(url)
+    # Combine the domain and suffix to form the main domain
+    main_domain = f"{extracted.domain}.{extracted.suffix}"
+    return main_domain

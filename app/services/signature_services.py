@@ -114,7 +114,7 @@ def bulk_insert_signatures(signatures_data):
 
         # Bulk Insert or Update Signatures
         insert_query = db.text("""
-            INSERT INTO "Signature" ("Signature", "EntryStatus", "SpywareNameID",  "SourceID", "FileTypeID", "InsertDate", "UpdateDate", "HitsCount", "SHA256", "OS")
+            INSERT INTO "Signature" ("Signature", "EntryStatus", "SpywareNameID", "SourceID", "FileTypeID", "InsertDate", "UpdateDate", "HitsCount", "SHA256", "OS")
             VALUES (:Signature, :EntryStatus, :SpywareNameID, :SourceID, :FileTypeID, :InsertDate, :UpdateDate, :HitsCount, :SHA256, :OS)  
             ON CONFLICT("Signature") 
             DO UPDATE SET
@@ -123,7 +123,7 @@ def bulk_insert_signatures(signatures_data):
                 "SourceID" = EXCLUDED."SourceID",
                 "FileTypeID" = EXCLUDED."FileTypeID",
                 "UpdateDate" = EXCLUDED."UpdateDate",
-                "HitsCount" = EXCLUDED."HitsCount",
+                "HitsCount" = "Signature"."HitsCount" + EXCLUDED."HitsCount",
                 "SHA256" = EXCLUDED."SHA256",  
                 "OS" = EXCLUDED."OS";  
         """)

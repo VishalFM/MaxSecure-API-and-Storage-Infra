@@ -5,7 +5,7 @@ from app.models.model import FileType
 from app.services.RL_VT_API_services import check_in_RL_API, check_in_VT_API
 from app.services.redis_services import search_in_malware_cache, search_in_white_cache, RedisService
 import threading
-from app.utils.parse_url import extract_main_domain, get_md5_from_url
+from app.utils.parse_url import extract_main_domain, get_main_domain, get_md5_from_url
 
 redis_bp = Blueprint('redis', __name__)
 redis_service = RedisService()
@@ -68,15 +68,18 @@ def search_malicious_url():
         url = request.args.get('url')
         if not url:
             return jsonify({"status": 0}), 200  # Return JSON with the status
-
+        print("url > ", url)
         try:
             url = base64.b64decode(url).decode('utf-8')
         except Exception:
             return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 500  # Include error details in JSON
-
+        print("url > ", url)
         md5_hash = get_md5_from_url(url)
-        domain_hash = get_md5_from_url(extract_main_domain(url))
+        print("md5_hash > ", md5_hash)
+        print("extract_main_domain(url) > ",extract_main_domain(url))
+        domain_hash = get_md5_from_url(get_main_domain(url))
 
+        print("md5_hash >",md5_hash)
         results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
         print("results_malicious > ", results_malicious)
         if results_malicious == 1:

@@ -48,8 +48,10 @@ def check_in_VT_API(url):
 
         data = response.json()
         
-        malicious_count = data["data"]["attributes"]["last_analysis_results"]["malicious"]
-        suspicious_count = data["data"]["attributes"]["last_analysis_results"]["suspicious"]
+        print("data > ", data["data"]["attributes"]["last_analysis_stats"]["malicious"])
+        print("")
+        malicious_count = data["data"]["attributes"]["last_analysis_stats"]["malicious"]
+        suspicious_count = data["data"]["attributes"]["last_analysis_stats"]["suspicious"]
         thread_names = data["data"]["attributes"]["threat_names"]
         
         print("malicious_count > ", malicious_count)
@@ -57,7 +59,6 @@ def check_in_VT_API(url):
         print("thread_names > ", thread_names)
 
         return malicious_count + suspicious_count >= 5 and thread_names
-
     except requests.exceptions.RequestException as e:  
         print(f"Request failed: {e}")
         return False
