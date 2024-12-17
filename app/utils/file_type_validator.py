@@ -8,8 +8,8 @@ def validate_file_type(file_type_name):
     if not file_type_name or not isinstance(file_type_name, str) or len(file_type_name.strip()) == 0:
         return f"Invalid file type: '{file_type_name}'. File type must be a non-empty string."
     print("1 completed")
-    if not re.match(r'^\.[a-zA-Z0-9]+$', file_type_name.strip()):
-        return f"Invalid file type format: '{file_type_name}'. Expected format: '.extension' (e.g., '.exe', '.bak')."
+    # if not re.match(r'^\.[a-zA-Z0-9]+$', file_type_name.strip()):
+    #     return f"Invalid file type format: '{file_type_name}'. Expected format: '.extension' (e.g., '.exe', '.bak')."
     
     print("2 completed")
     # existing_file_type = FileType.query.filter_by(Type=file_type_name.strip()).first()
