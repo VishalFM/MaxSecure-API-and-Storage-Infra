@@ -21,8 +21,8 @@ def check_in_RL_API(url):
         response.raise_for_status()
         response_data = response.json()
         classification = response_data.get("rl", {}).get("classification", "")
-
-        return classification in ["malicious", "suspicious"]
+        
+        return classification
             
     except requests.exceptions.RequestException as e:  
         print(f"An error occurred while making the API call: {e}")

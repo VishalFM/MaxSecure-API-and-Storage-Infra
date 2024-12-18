@@ -51,17 +51,17 @@ def search_malicious_url():
         except Exception:
             return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 500
         md5_hash = get_md5_from_url(url)
-        try:
-            domain_hash = get_md5_from_url(extract_main_domain(url))
-        except Exception:
-            domain_hash = get_md5_from_url(get_main_domain(url))
 
         results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
         if results_malicious == 1:
             return jsonify({"status": 2, "source": 1}), 200
 
-        results_domain = redis_service.search_in_domain_cache(domain_hash)
+        try:
+            domain_hash = get_md5_from_url(extract_main_domain(url))
+        except Exception:
+            domain_hash = get_md5_from_url(get_main_domain(url))
         
+        results_domain = redis_service.search_in_domain_cache(domain_hash)
         if results_domain == 1:
             return jsonify({"status": 1, "source": 2}), 200
 
