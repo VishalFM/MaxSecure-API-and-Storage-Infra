@@ -58,18 +58,19 @@ def search_malicious_url():
 
         results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
         if results_malicious == 1:
-            return jsonify({"status": 2, "message": "Malicious URL found"}), 200
+            return jsonify({"status": 2, "source": 2}), 200
 
         results_domain = redis_service.search_in_domain_cache(domain_hash)
         
         if results_domain == 1:
-            return jsonify({"status": 1, "message": "Malicious domain found"}), 200
+            return jsonify({"status": 1, "source": 1}), 200
 
-        if check_in_RL_API(url) or check_in_VT_API(url):
-            return jsonify({"status": 2, "message": "Malicious URL found in external API"}), 200
+        if check_in_RL_API(url) :
+            return jsonify({"status": 2, "source": 3}), 200
+        if check_in_VT_API(url):
+            return jsonify({"status": 2, "source": 4}), 200
 
-        return jsonify({"status": 0, "message": "No malicious content found"}), 200
+        return jsonify({"status": 0}), 200
 
     except Exception as e:
         return jsonify({"status": 0, "error": "Internal server error"}), 500
-
