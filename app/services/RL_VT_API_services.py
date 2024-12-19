@@ -52,7 +52,7 @@ def check_in_VT_API(url):
         thread_names = data["data"]["attributes"]["threat_names"]
 
         return malicious_count + suspicious_count >= 5 and thread_names
-    except requests.exceptions.RequestException as e:
+    except requests.exceptions.RequestException as e:  
         print(f"Request failed: {e}")
         return False
     except KeyError as e:
