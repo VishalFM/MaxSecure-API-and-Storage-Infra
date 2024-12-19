@@ -56,14 +56,14 @@ def search_malicious_url():
         if results_malicious == 1:
             return jsonify({"status": 2, "source": 1}), 200
 
-        try:
-            domain_hash = get_md5_from_url(extract_main_domain(url))
-        except Exception:
-            domain_hash = get_md5_from_url(get_main_domain(url))
+        # try:
+        #     domain_hash = get_md5_from_url(extract_main_domain(url))
+        # except Exception:
+        #     domain_hash = get_md5_from_url(get_main_domain(url))
         
-        results_domain = redis_service.search_in_domain_cache(domain_hash)
-        if results_domain == 1:
-            return jsonify({"status": 1, "source": 2}), 200
+        # results_domain = redis_service.search_in_domain_cache(domain_hash)
+        # if results_domain == 1:
+        #     return jsonify({"status": 1, "source": 2}), 200
 
         classification = check_in_RL_API(url)
         if classification in ["malicious", "suspicious"] :
