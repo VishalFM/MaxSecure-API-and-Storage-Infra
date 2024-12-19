@@ -26,10 +26,10 @@ def check_in_RL_API(url):
             
     except requests.exceptions.RequestException as e:  
         print(f"An error occurred while making the API call: {e}")
-        return False
+        return "unknown"
     except json.JSONDecodeError:
         print("Failed to parse the API response as JSON.")
-        return False
+        return "unknown"
     
 def check_in_VT_API(url):
     encoded_url = base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")

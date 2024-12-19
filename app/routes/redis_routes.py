@@ -5,10 +5,10 @@ from app.services.redis_services import search_in_malware_cache, search_in_white
 import threading
 from app.utils.parse_url import extract_main_domain, get_main_domain, get_md5_from_url
 
-redis_bp = Blueprint('redis', __name__)
+search_bp = Blueprint('search', __name__)
 redis_service = RedisService()
 
-@redis_bp.route('/search/<md5_signature>', methods=['GET'])
+@search_bp.route('/search/<md5_signature>', methods=['GET'])
 def search(md5_signature):
     try:
         md5_signature = base64.b64decode(md5_signature).decode('utf-8')
@@ -40,7 +40,7 @@ def search(md5_signature):
             return jsonify({"status": "success", "message": f"Found in Malware Cache: {SpywareNameAndCategory}"}), 200
     return jsonify({"status": "success", "message": "Not found in either cache"}), 200
 
-@redis_bp.route('/searchMaliciousUrl', methods=['GET'])
+@search_bp.route('/searchMaliciousUrl', methods=['GET'])
 def search_malicious_url():
     try:
         url = request.args.get('url')
