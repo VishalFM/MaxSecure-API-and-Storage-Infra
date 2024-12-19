@@ -64,41 +64,40 @@ class RedisService:
         except redis.exceptions.ConnectionError as e:
             return {"status": f"Error connecting to Redis: {e}"}, 500
 
-    def add_to_cache(self, record):
-        redis_key = f"{record['Signature']}"
-        redis_data = {
-            "EntryStatus": record['EntryStatus'],
-            "SpywareNameAndCategory": record['SpywareNameAndCategory'],
-            "HitsCount": record.get('HitsCount', 0)
-        }
 
-        redis_client = self.redis_white if record['EntryStatus'] == 0 else self.redis_malware
+    def save_to_redis(self, signature_map):
+        try:
+            with self.redis_white.pipeline() as white_pipeline, self.redis_malware.pipeline() as malware_pipeline:
+                for key, value in signature_map.items():
+                    signature, entry_status = key.split("|")
+                    spyware_name, vendor_name = value.split("|")
 
-        with self.lock:
-            try:
-                if not redis_client.exists(redis_key):
-                    redis_client.hmset(redis_key, redis_data)
-            except redis.exceptions.RedisError as e:
-                print(f"Error adding to cache: {e}")
+                    if entry_status == "0":
+                        if self.redis_malware.exists(signature):
+                            self.redis_malware.delete(signature)
+                            print(f"Moved from Malware to White cache: {signature}")
 
-    def remove_from_cache(self, signature, entry_status):
-        with self.lock:
-            try:
-                if entry_status == 0:
-                    self.redis_white.delete(f"{signature}")
-                else:
-                    self.redis_malware.delete(f"{signature}")
-            except redis.exceptions.RedisError:
-                pass
+                        white_pipeline.set(signature, f"{spyware_name}|{vendor_name}")
+                        print(f"Queued for White cache: {signature} -> {spyware_name}|{vendor_name}")
 
-    def process_signature(self, record):
-        if record['EntryStatus'] == 0:
-            self.remove_from_cache(record['Signature'], 1)
-            self.add_to_cache(record)
-        else:
-            self.remove_from_cache(record['Signature'], 0)
-            self.add_to_cache(record)
-    
+                    elif entry_status == "1":
+                        if self.redis_white.exists(signature):
+                            self.redis_white.delete(signature)
+                            print(f"Moved from White to Malware cache: {signature}")
+
+                        malware_pipeline.set(signature, f"{spyware_name}|{vendor_name}")
+                        print(f"Queued for Malware cache: {signature} -> {spyware_name}|{vendor_name}")
+
+                white_pipeline.execute()
+                malware_pipeline.execute()
+
+            print("Data saved to Redis successfully.")
+            return True
+
+        except Exception as e:
+            print(f"Error saving to Redis: {str(e)}")
+            return False
+
     def bulk_insert_malicious_url_cache(self, url_cache_data):
         try:
             url_cache_dict = {

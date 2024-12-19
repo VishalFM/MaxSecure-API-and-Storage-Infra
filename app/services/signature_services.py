@@ -2,11 +2,13 @@ import threading
 from datetime import datetime
 from app.models.model import Signature, FileType, Source, SpywareCategory, SpywareName
 from app.extensions import db
-from app.services.redis_services import update_redis_cache_in_thread
+from app.services.redis_services import RedisService, update_redis_cache_in_thread
 from app.services.file_type_services import validate_and_insert_file_types, get_file_type_ids
 from app.services.source_services import validate_and_insert_sources, get_source_ids
 from app.services.spyware_category_services import get_or_create_spyware_category
 from app.services.spyware_name_services import get_or_create_spyware_name
+
+redis_service = RedisService()
 
 def process_and_validate_records(signatures_data):
     required_fields = {'Signature', 'EntryStatus', 'SpywareName', 'Source', 'FileType', 'SHA256', 'OS'}
@@ -59,6 +61,7 @@ def bulk_insert_signatures(signatures_data):
 
         file_type_ids = get_file_type_ids([ft["Type"] for ft in file_types_to_validate])
         source_ids = get_source_ids([src["Name"] for src in sources_to_validate])
+        signature_map = {}
 
         for record in valid_records:
             category_name, spyware_name = record["SpywareName"].split(".", 1)
@@ -68,19 +71,6 @@ def bulk_insert_signatures(signatures_data):
             record["SourceID"] = source_ids.get(record["Source"])
             record["SHA256"] = record.get("SHA256")
             record["OS"] = record.get("OS")
-
-            redis_thread = threading.Thread(target=update_redis_cache_in_thread, args=({
-                "Signature": record['Signature'],
-                "EntryStatus": record['EntryStatus'],
-                "SpywareNameID": record['SpywareNameID'],
-                "SourceID": record['SourceID'],
-                "FileTypeID": record['FileTypeID'],
-                "HitsCount": record.get('HitsCount', 0),
-                "SpywareNameAndCategory": record['SpywareName'],
-                "SHA256": record["SHA256"],  
-                "OS": record["OS"]  
-            },))
-            redis_thread.start()
 
         insert_query = db.text("""
             INSERT INTO "Signature" ("Signature", "EntryStatus", "SpywareNameID", "SourceID", "FileTypeID", "InsertDate", "UpdateDate", "HitsCount", "SHA256", "OS")
@@ -116,8 +106,12 @@ def bulk_insert_signatures(signatures_data):
                 "OS": record["OS"]  
             } for record in batch]
 
+            for record in batch:
+                signature_map[f"{record['Signature']}|{record['EntryStatus']}"] = f"{record['SpywareName']}|{record['SHA256']}"
+
             db.session.execute(insert_query, batch_data)
             db.session.flush()
+            redis_service.save_to_redis(signature_map)
             inserted_count += len(batch)
 
         db.session.commit()
