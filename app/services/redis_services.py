@@ -10,7 +10,8 @@ class RedisService:
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
             db=Config.REDIS_DB_WHITE,
-            decode_responses=True
+            decode_responses=True,
+            max_connections = 100
         )
         self.redis_white = redis.StrictRedis(connection_pool=pool_white)
 
@@ -19,7 +20,8 @@ class RedisService:
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
             db=Config.REDIS_DB_MALWARE,
-            decode_responses=True
+            decode_responses=True,
+            max_connections=100
         )
         self.redis_malware = redis.StrictRedis(connection_pool=pool_malware)
 
@@ -28,7 +30,8 @@ class RedisService:
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
             db=Config.REDIS_DB_MALICIOUS_URL,
-            decode_responses=True
+            decode_responses=True,
+            max_connections=100
         )
         self.redis_malicious_url = redis.StrictRedis(connection_pool=pool_malicious_url)
 
@@ -37,7 +40,8 @@ class RedisService:
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
             db=Config.REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL,
-            decode_responses=True
+            decode_responses=True,
+            max_connections=100
         )
         self.redis_malicious_Main_Domain_url = redis.StrictRedis(connection_pool=pool_main_domain)
 
