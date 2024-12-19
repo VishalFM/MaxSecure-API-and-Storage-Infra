@@ -49,7 +49,7 @@ def check_in_VT_API(url):
         suspicious_count = data["data"]["attributes"]["last_analysis_stats"]["suspicious"]
         thread_names = data["data"]["attributes"]["threat_names"]
 
-        return malicious_count + suspicious_count >= 5 and thread_names
+        return malicious_count + suspicious_count > 5 # and thread_names # as discussed with Dheeraj Commenting this and replaced '>=' with '>'
     except requests.exceptions.RequestException as e:  
         print(f"Request failed: {e}")
         return False
