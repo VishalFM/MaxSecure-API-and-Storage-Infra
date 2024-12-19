@@ -98,6 +98,11 @@ class RedisService:
             print(f"Error saving to Redis: {str(e)}")
             return False
 
+    def delete_from_redis(signature):
+        redis_service.redis_white.delete(signature)
+        redis_service.redis_malware.delete(signature)
+
+
     def bulk_insert_malicious_url_cache(self, url_cache_data):
         try:
             url_cache_dict = {

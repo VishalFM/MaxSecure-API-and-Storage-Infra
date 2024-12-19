@@ -120,3 +120,63 @@ def bulk_insert_signatures(signatures_data):
     except Exception as e:
         db.session.rollback()
         return {"error": f"An error occurred: {str(e)}", "inserted_count": 0}, False
+
+def delete_signature(signature):
+    try:
+        delete_hits_query = db.text("""
+            DELETE FROM "Hits" WHERE "SignatureTableID" = (SELECT "ID" FROM "Signature" WHERE "Signature" = :signature)
+        """)
+        db.session.execute(delete_hits_query, {'signature': signature})
+
+        delete_query = db.text("""
+            DELETE FROM "Signature" WHERE "Signature" = :signature
+        """)
+        db.session.execute(delete_query, {'signature': signature})
+
+        redis_service.delete_from_redis(signature)
+        
+        db.session.commit()
+        return {"message": f"Signature '{signature}' deleted successfully."}, True
+
+    except Exception as e:
+        db.session.rollback()
+        return {"error": f"An error occurred while deleting the signature: {str(e)}"}, False
+   
+def update_signature(signature, signature_data):
+    try:
+        existing_signature = db.session.execute(db.text("""
+            SELECT s."SHA256"
+            FROM "Signature" s
+            JOIN "SpywareName" sn ON sn."ID" = s."SpywareNameID"
+            WHERE s."Signature" = :signature
+        """), {'signature': signature}).fetchone()
+
+        if not existing_signature:
+            return {"error": f"Signature '{signature}' not found."}, False
+        
+        category_name, spyware_name = signature_data['SpywareName'].split(".", 1)
+        category_id = get_or_create_spyware_category(category_name)
+        spyware_name_id = get_or_create_spyware_name(spyware_name, category_id)
+
+        db.session.execute(db.text("""
+            UPDATE "Signature"
+            SET "EntryStatus" = :entry_status,
+                "SpywareNameID" = :spyware_name_id,
+                "UpdateDate" = :update_date
+            WHERE "Signature" = :signature
+        """), {
+            'signature': signature,
+            'entry_status': signature_data['EntryStatus'],
+            'spyware_name_id': spyware_name_id,
+            'update_date': datetime.now()
+        })
+
+        redis_data = {f"{signature}|{signature_data['EntryStatus']}": f"{signature_data['SpywareName']}|{existing_signature[0]}"}
+        redis_service.save_to_redis(redis_data)
+
+        db.session.commit()
+        return {"message": f"Signature '{signature}' updated successfully."}, True
+
+    except Exception as e:
+        db.session.rollback()
+        return {"error": f"An error occurred while updating the signature: {str(e)}"}, False
