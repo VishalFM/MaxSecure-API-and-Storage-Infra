@@ -8,6 +8,7 @@ from app.utils.parse_url import extract_main_domain, get_main_domain, get_md5_fr
 search_bp = Blueprint('search', __name__)
 redis_service = RedisService()
 
+
 @search_bp.route('/search/<md5_signature>', methods=['GET'])
 def search(md5_signature):
     try:
@@ -17,15 +18,15 @@ def search(md5_signature):
 
     result_dict = {"found_in_white": False, "found_in_malware": False, "status": 2}
     event = threading.Event()
-    
+
     white_thread = threading.Thread(target=search_in_white_cache, args=(md5_signature, result_dict, event))
     malware_thread = threading.Thread(target=search_in_malware_cache, args=(md5_signature, result_dict, event))
-    
+
     white_thread.start()
     malware_thread.start()
-    
+
     event.wait(timeout=1)
-    
+
     white_thread.join()
     malware_thread.join()
 
@@ -40,6 +41,7 @@ def search(md5_signature):
             return jsonify({"status": "success", "message": f"Found in Malware Cache: {SpywareNameAndCategory}"}), 200
     return jsonify({"status": "success", "message": "Not found in either cache"}), 200
 
+
 @search_bp.route('/searchMaliciousUrl', methods=['GET'])
 def search_malicious_url():
     try:
@@ -53,20 +55,11 @@ def search_malicious_url():
         md5_hash = get_md5_from_url(url)
 
         results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
-        if results_malicious == 1:
+        if results_malicious:
             return jsonify({"status": 2, "source": 1}), 200
 
-        # try:
-        #     domain_hash = get_md5_from_url(extract_main_domain(url))
-        # except Exception:
-        #     domain_hash = get_md5_from_url(get_main_domain(url))
-        
-        # results_domain = redis_service.search_in_domain_cache(domain_hash)
-        # if results_domain == 1:
-        #     return jsonify({"status": 1, "source": 2}), 200
-
         classification = check_in_RL_API(url)
-        if classification in ["malicious", "suspicious"] :
+        if classification in ["malicious", "suspicious"]:
             return jsonify({"status": 2, "source": 3}), 200
         elif classification in ["unknown"] and check_in_VT_API(url):
             return jsonify({"status": 2, "source": 4}), 200

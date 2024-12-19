@@ -5,37 +5,41 @@ from config import Config
 
 class RedisService:
     def __init__(self):
-        self.redis_white = redis.StrictRedis(
+        pool_white = redis.ConnectionPool(
             host=Config.REDIS_HOST,
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
             db=Config.REDIS_DB_WHITE,
             decode_responses=True
         )
+        self.redis_white = redis.StrictRedis(connection_pool=pool_white)
 
-        self.redis_malware = redis.StrictRedis(
+        pool_malware = redis.ConnectionPool(
             host=Config.REDIS_HOST,
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
             db=Config.REDIS_DB_MALWARE,
             decode_responses=True
         )
+        self.redis_malware = redis.StrictRedis(connection_pool=pool_malware)
 
-        self.redis_malicious_url = redis.StrictRedis(
+        pool_malicious_url = redis.ConnectionPool(
             host=Config.REDIS_HOST,
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
             db=Config.REDIS_DB_MALICIOUS_URL,
             decode_responses=True
         )
+        self.redis_malicious_url = redis.StrictRedis(connection_pool=pool_malicious_url)
 
-        self.redis_malicious_Main_Domain_url = redis.StrictRedis(
+        pool_main_domain = redis.ConnectionPool(
             host=Config.REDIS_HOST,
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
             db=Config.REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL,
             decode_responses=True
         )
+        self.redis_malicious_Main_Domain_url = redis.StrictRedis(connection_pool=pool_main_domain)
 
         self.lock = threading.Lock()
 
@@ -58,30 +62,20 @@ class RedisService:
 
     def add_to_cache(self, record):
         redis_key = f"{record['Signature']}"
-        
         redis_data = {
             "EntryStatus": record['EntryStatus'],
             "SpywareNameAndCategory": record['SpywareNameAndCategory'],
             "HitsCount": record.get('HitsCount', 0)
         }
-        
+
+        redis_client = self.redis_white if record['EntryStatus'] == 0 else self.redis_malware
+
         with self.lock:
-            if record['EntryStatus'] == 0:
-                if self.redis_white.exists(redis_key):
-                    return
-                try:
-                    for field, value in redis_data.items():
-                        self.redis_white.hset(redis_key, field, value)
-                except redis.exceptions.RedisError:
-                    pass
-            else:
-                if self.redis_malware.exists(redis_key):
-                    return
-                try:
-                    for field, value in redis_data.items():
-                        self.redis_malware.hset(redis_key, field, value)
-                except redis.exceptions.RedisError:
-                    pass
+            try:
+                if not redis_client.exists(redis_key):
+                    redis_client.hmset(redis_key, redis_data)
+            except redis.exceptions.RedisError as e:
+                print(f"Error adding to cache: {e}")
 
     def remove_from_cache(self, signature, entry_status):
         with self.lock:
