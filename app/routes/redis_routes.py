@@ -1,4 +1,5 @@
 import base64
+import binascii
 from concurrent.futures import ThreadPoolExecutor
 from flask import Blueprint, request, jsonify
 from app.services.RL_VT_API_services import check_in_RL_API, check_in_VT_API
@@ -46,6 +47,8 @@ def search_malicious_url():
             return jsonify({"status": 0}), 200
         try:
             url = base64.b64decode(url).decode('utf-8')
+        except binascii.Error:
+            return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 400
         except Exception:
             return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 500
         md5_hash = get_md5_from_url(url)
