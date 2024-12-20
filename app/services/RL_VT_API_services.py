@@ -27,14 +27,14 @@ def check_in_RL_API(url):
         suspicious_count = statistics.get("suspicious", 0)
         classification = data.get("rl", {}).get("classification", "")
 
-        return malicious_count + suspicious_count >= 5 and classification in ["suspicious", "malicious"], classification 
+        return classification, malicious_count + suspicious_count >= 5 and classification in ["suspicious", "malicious"], 
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while making the API call: {e}")
-        return False, "unknown"
+        return "unknown", False
     except json.JSONDecodeError:
         print("Failed to parse the API response as JSON.")
-        return False, "unknown"
+        return "unknown", False
 
 
 def check_in_VT_API(url):

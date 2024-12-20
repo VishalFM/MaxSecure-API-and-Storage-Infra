@@ -61,7 +61,7 @@ def search_malicious_url():
             vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
             return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200
 
-        is_malicious, classification = check_in_RL_API(url)
+        classification, is_malicious = check_in_RL_API(url)
 
         if is_malicious:
             return jsonify({"status": 2, "source": 3}), 200
