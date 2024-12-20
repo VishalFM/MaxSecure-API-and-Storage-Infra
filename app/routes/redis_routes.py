@@ -1,5 +1,5 @@
 import base64
-import binascii
+# import binascii
 from concurrent.futures import ThreadPoolExecutor
 from flask import Blueprint, request, jsonify
 from app.services.RL_VT_API_services import check_in_RL_API, check_in_VT_API
@@ -48,8 +48,8 @@ def search_malicious_url():
         
         try:
             url = base64.b64decode(encoded_url).decode('utf-8')
-        except binascii.Error:
-            return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 400
+        # except binascii.Error:
+        #     return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 400
         except Exception as e:
             return jsonify({"status": 0, "error": f"Error decoding URL: {str(e)}"}), 500
 
