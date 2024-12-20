@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from app.services.malicious_urls_services import bulk_delete_malicious_urls, bulk_insert_malicious_urls
+from app.services.malicious_urls_services import bulk_delete_malicious_urls, bulk_insert_malicious_urls, search_malicious_urls_service
 
 malicious_urls_bp = Blueprint('malicious_urls', __name__)
 
@@ -34,3 +34,22 @@ def delete_malicious_urls():
             return jsonify(result), 500
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+@malicious_urls_bp.route('/malicious_urls/search', methods=['GET'])
+def search_malicious_urls():
+    try:
+        url = request.args.get('URL')
+        md5 = request.args.get('MD5')
+        main_domain = request.args.get('MainDomain')
+        main_domain_md5 = request.args.get('MainDomainMD5')
+        vendor = request.args.get('Vendor')
+
+        result, success = search_malicious_urls_service(url, md5, main_domain, main_domain_md5, vendor)
+
+        if success:
+            return jsonify(result), 200
+        else:
+            return jsonify(result), 400
+
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500

@@ -2,7 +2,7 @@ import hashlib
 from urllib.parse import urlparse
 from app.models.model import MaliciousURLs, Source
 from app.extensions import db
-from app.services.source_services import get_source_ids, validate_and_insert_sources
+from app.services.source_services import get_source_ids, get_source_name_by_id, validate_and_insert_sources
 from app.services.redis_services import RedisService
 from app.utils.parse_url import get_md5_from_url
 
@@ -94,4 +94,43 @@ def bulk_delete_malicious_urls(md5_list, batch_size=10000):
         return {"message": f"Processing completed. Deleted: {deleted_count}"}, True
     except Exception as e:
         db.session.rollback()
+        return {"error": f"An error occurred: {str(e)}"}, False
+
+def search_malicious_urls_service(url=None, md5=None, main_domain=None, main_domain_md5=None, vendor=None, page=1, per_page=100):
+    try:
+        query = db.session.query(MaliciousURLs)
+
+        if url:
+            query = query.filter(MaliciousURLs.URL.ilike(f'%{url.strip().lower()}%'))
+        if md5:
+            query = query.filter(MaliciousURLs.MD5.ilike(f'%{md5.strip().lower()}%'))
+        if main_domain:
+            query = query.filter(MaliciousURLs.MainDomain.ilike(f'%{main_domain.strip().lower()}%'))
+        if main_domain_md5:
+            query = query.filter(MaliciousURLs.Main_domain_MD5.ilike(f'%{main_domain_md5.strip().lower()}%'))
+        if vendor:
+            source_id = get_source_ids([vendor.strip()]).get(vendor.strip())
+            if source_id:
+                query = query.filter(MaliciousURLs.VendorID == source_id)
+
+        query = query.offset((page - 1) * per_page).limit(per_page)
+
+        results = query.all()
+
+        result_data = [
+            {
+                "URL": record.URL,
+                "MD5": record.MD5,
+                "MainDomain": record.MainDomain,
+                "MainDomainMD5": record.Main_domain_MD5,
+                "Vendor": get_source_name_by_id(record.VendorID),
+                "EntryStatus": record.EntryStatus,
+                "Score": record.Score
+            }
+            for record in results
+        ]
+
+        return {"malicious_urls": result_data}, True
+
+    except Exception as e:
         return {"error": f"An error occurred: {str(e)}"}, False

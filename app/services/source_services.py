@@ -57,3 +57,7 @@ def get_source_ids(sources):
         .filter(db.func.lower(Source.Name).in_(sources_casefolded))
         .all()
     }
+
+def get_source_name_by_id(vendor_id):
+    source = db.session.query(Source).filter(Source.ID == vendor_id).first()
+    return source.Name if source else None
