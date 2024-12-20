@@ -102,31 +102,17 @@ class RedisService:
         redis_service.redis_white.delete(signature)
         redis_service.redis_malware.delete(signature)
 
-
-    def bulk_insert_malicious_url_cache(self, url_cache_data):
+    def bulk_insert_cache(self, cache_data, cache_type):
         try:
-            url_cache_dict = {
-                f"{md5_hash}": entry_status
-                for md5_hash, entry_status in url_cache_data
-                if not self.redis_malicious_url.exists(f"{md5_hash}")
-            }
-
-            if url_cache_dict:
-                self.redis_malicious_url.mset(url_cache_dict)
-
-        except redis.exceptions.RedisError:
-            pass
-
-    def bulk_insert_main_domain_url_cache(self, domain_cache_data):
-        try:
-            domain_cache_dict = {
-                f"{md5_hash_main_domain}": entry_status
-                for md5_hash_main_domain, entry_status in domain_cache_data
-                if not self.redis_malicious_Main_Domain_url.exists(f"{md5_hash_main_domain}")
-            }
-            if domain_cache_dict:
-                self.redis_malicious_Main_Domain_url.mset(domain_cache_dict)
-        
+            redis_cache = (
+                self.redis_malicious_url if cache_type == "malicious_url" 
+                else self.redis_malicious_Main_Domain_url
+            )
+            pipeline = redis_cache.pipeline()
+            for md5_hash, value in cache_data:
+                if not redis_cache.exists(md5_hash):
+                    pipeline.set(md5_hash, value)
+            pipeline.execute()
         except redis.exceptions.RedisError:
             pass
 
