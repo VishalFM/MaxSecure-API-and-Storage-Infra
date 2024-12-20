@@ -64,38 +64,28 @@ class RedisService:
         except redis.exceptions.ConnectionError as e:
             return {"status": f"Error connecting to Redis: {e}"}, 500
 
-
-    def save_to_redis(self, signature_map):
+    def save_to_redis(self, signature_map_white, signature_map_malware):
         try:
             with self.redis_white.pipeline() as white_pipeline, self.redis_malware.pipeline() as malware_pipeline:
-                for key, value in signature_map.items():
-                    signature, entry_status = key.split("|")
-                    spyware_name, vendor_name = value.split("|")
+                # Process white cache entries
+                for signature, value in signature_map_white.items():
+                    spyware_name, vendor_name, source_name = value.split("|")
+                    if self.redis_malware.exists(signature):
+                        self.redis_malware.delete(signature)
+                    white_pipeline.set(signature, f"{spyware_name}|{vendor_name}|{source_name}")
 
-                    if entry_status == "0":
-                        if self.redis_malware.exists(signature):
-                            self.redis_malware.delete(signature)
-                            print(f"Moved from Malware to White cache: {signature}")
-
-                        white_pipeline.set(signature, f"{spyware_name}|{vendor_name}")
-                        print(f"Queued for White cache: {signature} -> {spyware_name}|{vendor_name}")
-
-                    elif entry_status == "1":
-                        if self.redis_white.exists(signature):
-                            self.redis_white.delete(signature)
-                            print(f"Moved from White to Malware cache: {signature}")
-
-                        malware_pipeline.set(signature, f"{spyware_name}|{vendor_name}")
-                        print(f"Queued for Malware cache: {signature} -> {spyware_name}|{vendor_name}")
+                # Process malware cache entries
+                for signature, value in signature_map_malware.items():
+                    spyware_name, vendor_name, source_name = value.split("|")
+                    if self.redis_white.exists(signature):
+                        self.redis_white.delete(signature)
+                    malware_pipeline.set(signature, f"{spyware_name}|{vendor_name}|{source_name}")
 
                 white_pipeline.execute()
                 malware_pipeline.execute()
 
-            print("Data saved to Redis successfully.")
             return True
-
         except Exception as e:
-            print(f"Error saving to Redis: {str(e)}")
             return False
 
     def delete_from_redis(signature):
@@ -156,3 +146,36 @@ def search_in_malware_cache(md5_signature, result_dict, event):
         result_dict["found_in_malware"] = False
 
     time.sleep(2)
+
+def search_in_cache(md5_signature, result_dict, cache_type):
+    redis_key = f"{md5_signature}"
+
+    if cache_type == "white":
+        redis_cache = redis_service.redis_white
+        key_exists = redis_cache.exists(redis_key)
+        if key_exists:
+            cache_value = redis_cache.get(redis_key).split('|')  # Assuming it's stored in "SpywareName|VendorName|SourceName"
+            return {
+                "Spyware Name": cache_value[0],
+                "Vendor Name": cache_value[1],
+                "Source Name": cache_value[2],
+                "status": 0  # status 0 indicates it was found in white cache
+            }
+        else:
+            return {"status": 2}  # status 2 indicates not found in white cache
+
+    elif cache_type == "malware":
+        redis_cache = redis_service.redis_malware
+        key_exists = redis_cache.exists(redis_key)
+        if key_exists:
+            cache_value = redis_cache.hget(redis_key, "SpywareNameAndCategory")  # Assuming it has a field "SpywareNameAndCategory"
+            cache_value_parts = cache_value.split('|')
+            return {
+                "Spyware Name": cache_value_parts[0],
+                "Category": cache_value_parts[1],
+                "status": 1  # status 1 indicates it was found in malware cache
+            }
+        else:
+            return {"status": 2}  # status 2 indicates not found in malware cache
+
+    return None  # In case an invalid cache type is provided

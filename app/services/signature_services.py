@@ -61,7 +61,8 @@ def bulk_insert_signatures(signatures_data):
 
         file_type_ids = get_file_type_ids([ft["Type"] for ft in file_types_to_validate])
         source_ids = get_source_ids([src["Name"] for src in sources_to_validate])
-        signature_map = {}
+        signature_map_white = {}
+        signature_map_malware = {}
 
         for record in valid_records:
             category_name, spyware_name = record["SpywareName"].split(".", 1)
@@ -71,6 +72,11 @@ def bulk_insert_signatures(signatures_data):
             record["SourceID"] = source_ids.get(record["Source"])
             record["SHA256"] = record.get("SHA256")
             record["OS"] = record.get("OS")
+
+            if record["EntryStatus"] == 0:  # White Cache
+                signature_map_white[record['Signature']] = f"{record['SpywareName']}|{record['SHA256']}|{record['Source']}"
+            elif record["EntryStatus"] == 1:  # Malware Cache
+                signature_map_malware[record['Signature']] = f"{record['SpywareName']}|{record['SHA256']}|{record['Source']}"
 
         insert_query = db.text("""
             INSERT INTO "Signature" ("Signature", "EntryStatus", "SpywareNameID", "SourceID", "FileTypeID", "InsertDate", "UpdateDate", "HitsCount", "SHA256", "OS")
@@ -105,13 +111,10 @@ def bulk_insert_signatures(signatures_data):
                 "SHA256": record["SHA256"],  
                 "OS": record["OS"]  
             } for record in batch]
-
-            for record in batch:
-                signature_map[f"{record['Signature']}|{record['EntryStatus']}"] = f"{record['SpywareName']}|{record['SHA256']}"
-
+            
             db.session.execute(insert_query, batch_data)
             db.session.flush()
-            redis_service.save_to_redis(signature_map)
+            redis_service.save_to_redis(signature_map_white, signature_map_malware)
             inserted_count += len(batch)
 
         db.session.commit()
