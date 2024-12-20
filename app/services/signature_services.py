@@ -183,3 +183,49 @@ def update_signature(signature, signature_data):
     except Exception as e:
         db.session.rollback()
         return {"error": f"An error occurred while updating the signature: {str(e)}"}, False
+
+def search_signatures_service(signature=None, start_date=None, end_date=None, os=None, entry_status=None):
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
+        end_date = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
+
+        query = db.session.query(Signature)
+
+        if signature:
+            query = query.filter(Signature.Signature == signature)
+        
+        if start_date and end_date:
+            query = query.filter(Signature.InsertDate >= start_date, Signature.InsertDate <= end_date)
+        elif start_date:
+            query = query.filter(Signature.InsertDate >= start_date)
+        elif end_date:
+            query = query.filter(Signature.InsertDate <= end_date)
+
+        if os:
+            query = query.filter(Signature.OS == os)
+
+        if entry_status:
+            query = query.filter(Signature.EntryStatus == entry_status)
+
+        signatures = query.all()
+
+        if not signatures:
+            return {"status": "success", "message": "No signatures found"}, 200
+
+        results = [{
+            "Signature": sig.Signature,
+            "EntryStatus": sig.EntryStatus,
+            "SpywareNameID": sig.SpywareNameID,
+            "SourceID": sig.SourceID,
+            "FileTypeID": sig.FileTypeID,
+            "InsertDate": sig.InsertDate,
+            "UpdateDate": sig.UpdateDate,
+            "HitsCount": sig.HitsCount,
+            "SHA256": sig.SHA256,
+            "OS": sig.OS
+        } for sig in signatures]
+
+        return {"status": "success", "data": results}, 200
+
+    except Exception as e:
+        return {"status": "error", "message": f"An error occurred: {str(e)}"}, 500
