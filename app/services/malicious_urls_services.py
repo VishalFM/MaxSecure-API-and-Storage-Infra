@@ -11,61 +11,87 @@ redis_service = RedisService()
 def bulk_insert_malicious_urls(urls_data, batch_size=10000):
     try:
         existing_pairs = {
-            (url.MD5.lower(), url.VendorID): url for url in MaliciousURLs.query.all()
+            (url.MD5.lower(), url.VendorID): url for url in db.session.query(
+                MaliciousURLs.MD5, MaliciousURLs.VendorID, MaliciousURLs.EntryStatus, MaliciousURLs.Score
+            ).all()
         }
         sources = [{"Name": record['VendorName'].strip()} for record in urls_data]
         validate_and_insert_sources(sources, ignore_existing_sources=True)
         source_ids = get_source_ids([src["Name"] for src in sources])
-        inserted_count = 0
-        updated_count = 0
-        malicious_url_cache_data = []
-        main_domain_url_cache_data = []
-        
+
+        inserted_count = updated_count = 0
+        malicious_cache, domain_cache = [], []
+        new_urls = []
+
         for i in range(0, len(urls_data), batch_size):
             batch = urls_data[i:i + batch_size]
-            new_urls = []
-            new_urls_hash_set = set()
+            new_urls.clear()
 
             for record in batch:
                 vendor_name = record['VendorName'].strip()
-                vendorId = source_ids.get(vendor_name)
+                vendor_id = source_ids.get(vendor_name)
                 normalized_url = record['URL'].strip().lower()
-                parsed_url = urlparse(normalized_url)
-                md5_hash = get_md5_from_url(normalized_url)
-                domain = parsed_url.netloc 
-                md5_hash_main_domain = get_md5_from_url(domain)
-                malicious_url_cache_data.append((md5_hash, record['EntryStatus']))
-                main_domain_url_cache_data.append((md5_hash_main_domain, record['EntryStatus']))
-                key = (md5_hash, vendorId)
+                domain = urlparse(normalized_url).netloc
+                md5_url, md5_domain = get_md5_from_url(normalized_url), get_md5_from_url(domain)
+                cache_value = f"{record['EntryStatus']}|{record.get('Score', 0.0)}|{vendor_name}"
 
-                if key in existing_pairs or md5_hash in new_urls_hash_set:
-                    if key in existing_pairs:
-                        existing_pairs[key].EntryStatus = record['EntryStatus']
-                        existing_pairs[key].Score = record.get('Score', 0.0)
+                malicious_cache.append((md5_url, cache_value))
+                domain_cache.append((md5_domain, cache_value))
+                key = (md5_url, vendor_id)
+
+                if key in existing_pairs:
+                    existing = existing_pairs[key]
+                    if existing.EntryStatus != record['EntryStatus'] or existing.Score != record.get('Score', 0.0):
+                        existing.EntryStatus = record['EntryStatus']
+                        existing.Score = record.get('Score', 0.0)
                         updated_count += 1
-                    continue
                 else:
-                    new_urls_hash_set.add(md5_hash)
                     new_urls.append(MaliciousURLs(
                         URL=record['URL'].strip(),
-                        VendorID=vendorId,
+                        VendorID=vendor_id,
                         EntryStatus=record['EntryStatus'],
-                        Score=record.get('Score', 0),
-                        MD5=md5_hash,
+                        Score=record.get('Score', 0.0),
+                        MD5=md5_url,
                         MainDomain=domain,
-                        Main_domain_MD5=md5_hash_main_domain
+                        Main_domain_MD5=md5_domain
                     ))
                     inserted_count += 1
 
             if new_urls:
                 db.session.bulk_save_objects(new_urls)
-            db.session.commit()
-            redis_service.bulk_insert_malicious_url_cache(malicious_url_cache_data)
-            redis_service.bulk_insert_main_domain_url_cache(main_domain_url_cache_data)
+                db.session.commit()
+
+            redis_service.bulk_insert_cache(malicious_cache, "malicious_url")
+            redis_service.bulk_insert_cache(domain_cache, "main_domain_url")
+
+            malicious_cache.clear()
+            domain_cache.clear()
 
         return {
             "message": f"Processing completed. Inserted: {inserted_count}, Updated: {updated_count}"
         }, True
     except Exception as e:
-        db.session.rollback()  
+        db.session.rollback()
+        return {"error": f"An error occurred: {str(e)}"}, False
+
+def bulk_delete_malicious_urls(md5_list, batch_size=10000):
+    try:
+        deleted_count = 0
+
+        for i in range(0, len(md5_list), batch_size):
+            batch = md5_list[i:i + batch_size]
+
+            records_to_delete = db.session.query(MaliciousURLs).filter(
+                MaliciousURLs.MD5.in_(batch)
+            ).all()
+
+            for record in records_to_delete:
+                db.session.delete(record)
+                deleted_count += 1
+
+            db.session.commit()
+
+        return {"message": f"Processing completed. Deleted: {deleted_count}"}, True
+    except Exception as e:
+        db.session.rollback()
         return {"error": f"An error occurred: {str(e)}"}, False
