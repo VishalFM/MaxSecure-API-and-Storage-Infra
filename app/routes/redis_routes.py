@@ -42,33 +42,28 @@ def search(md5_signature):
 @search_bp.route('/searchMaliciousUrl', methods=['GET'])
 def search_malicious_url():
     try:
-        encoded_url = request.args.get('url')
-        if not encoded_url:
-            return jsonify({"status": 0, "error": "URL parameter is required"}), 400
-        
+        url = request.args.get('url')
+        if not url:
+            return jsonify({"status": 0}), 200
         try:
-            url = base64.b64decode(encoded_url).decode('utf-8')
-        # except binascii.Error:
-        #     return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 400
-        except Exception as e:
-            return jsonify({"status": 0, "error": f"Error decoding URL: {str(e)}"}), 500
-
+            url = base64.b64decode(url).decode('utf-8')
+        except binascii.Error:
+            return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 400
+        except Exception:
+            return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 500
         md5_hash = get_md5_from_url(url)
 
-        cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
-        if cached_result:
-            vendor, score = cached_result.split('|')[1], cached_result.split('|')[2]
-            return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200
+        results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
+        if results_malicious:
+            return jsonify({"status": 2, "source": 1, "Vendor": results_malicious.split('|')[2], "Score": results_malicious.split('|')[1]}), 200
 
-        is_malicious, classification = check_in_RL_API(url)
-
-        if is_malicious:
-            return jsonify({"status": 2, "source": 3, "classification": classification}), 200
-
-        if classification == "unknown" and check_in_VT_API(url):
+        classification = check_in_RL_API(url)
+        if classification in ["malicious", "suspicious"]:
+            return jsonify({"status": 2, "source": 3}), 200
+        elif classification in ["unknown"] and check_in_VT_API(url):
             return jsonify({"status": 2, "source": 4}), 200
 
         return jsonify({"status": 0}), 200
 
     except Exception as e:
-        return jsonify({"status": 0, "error": f"Internal server error: {str(e)}"}), 500
+        return jsonify({"status": 0, "error": "Internal server error"}), 500

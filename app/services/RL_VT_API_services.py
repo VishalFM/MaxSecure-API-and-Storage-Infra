@@ -20,21 +20,17 @@ def check_in_RL_API(url):
     try:
         response = requests.post(api_url, json=payload, auth=(username, password))
         response.raise_for_status()
-        data = response.json()
+        response_data = response.json()
+        classification = response_data.get("rl", {}).get("classification", "")
 
-        statistics = data.get("rl", {}).get("third_party_reputations", {}).get("statistics", {})
-        malicious_count = statistics.get("malicious", 0)
-        suspicious_count = statistics.get("suspicious", 0)
-        classification = data.get("rl", {}).get("classification", "")
-
-        return malicious_count + suspicious_count >= 5 and classification in ["suspicious", "malicious"], classification 
+        return classification
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while making the API call: {e}")
-        return False, ["unknown"]
+        return "unknown"
     except json.JSONDecodeError:
         print("Failed to parse the API response as JSON.")
-        return False, ["unknown"]
+        return "unknown"
 
 
 def check_in_VT_API(url):
