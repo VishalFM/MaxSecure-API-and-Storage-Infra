@@ -56,7 +56,7 @@ def search_malicious_url():
 
         results_malicious = redis_service.search_in_malicious_url_cache(md5_hash)
         if results_malicious:
-            return jsonify({"status": 2, "source": 1}), 200
+            return jsonify({"status": 2, "source": 1, "Vendor": results_malicious.split('|')[2], "Score": results_malicious.split('|')[1]}), 200
 
         classification = check_in_RL_API(url)
         if classification in ["malicious", "suspicious"]:

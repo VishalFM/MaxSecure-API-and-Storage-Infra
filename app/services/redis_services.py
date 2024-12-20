@@ -116,19 +116,11 @@ class RedisService:
         except redis.exceptions.RedisError:
             pass
 
-    def _common_cache_search(self, hash_value, redis_client, is_domain=False):
+    def _common_cache_search(self, hash_value, redis_client):
         try:
-            redis_key = str(hash_value)
-            if is_domain:
-                if redis_client.get(redis_key):
-                    return True
-            else:
-                if redis_client.get(redis_key):
-                    return True
-            return False
-        
+            return redis_client.get(str(hash_value)) or ""
         except redis.exceptions.RedisError:
-            return False
+            return ""
 
     def search_in_malicious_url_cache(self, md5_hash):
         return self._common_cache_search(md5_hash, self.redis_malicious_url)
