@@ -44,11 +44,15 @@ def search(md5_signature):
 def search_malicious_url():
     try:
         encoded_url = request.args.get('url')
+        is_base = request.args.get('is_base', default='true', type=str).lower() == 'true'
+
         if not encoded_url:
             return jsonify({"status": 0, "error": "URL parameter is required"}), 400
-        
         try:
-            url = base64.b64decode(encoded_url).decode('utf-8')
+            if is_base:
+                url = base64.b64decode(encoded_url).decode('utf-8')
+            else:
+                url = encoded_url
         except binascii.Error:
             return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 400
         except Exception as e:
@@ -69,7 +73,7 @@ def search_malicious_url():
         if is_malicious:
             return jsonify({"status": 2, "source": 3}), 200
 
-        if classification == "unknown" and check_in_VT_API(url):
+        if classification == "unknown" and check_in_VT_API(encoded_url):
             return jsonify({"status": 2, "source": 4}), 200
 
         return jsonify({"status": 0}), 200
