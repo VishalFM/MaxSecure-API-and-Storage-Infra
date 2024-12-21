@@ -74,7 +74,8 @@ def search_malicious_url():
         if is_malicious:
             return jsonify({"status": 2, "source": 3}), 200
 
-        if classification == "unknown" and check_in_VT_API(encoded_url):
+        # if classification == "unknown" and check_in_VT_API(encoded_url):
+        if check_in_VT_API(encoded_url):
             return jsonify({"status": 2, "source": 4}), 200
 
         return jsonify({"status": 0}), 200

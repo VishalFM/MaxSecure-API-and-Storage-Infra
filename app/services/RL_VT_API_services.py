@@ -27,7 +27,7 @@ def check_in_RL_API(url):
         suspicious_count = statistics.get("suspicious", 0)
         classification = data.get("rl", {}).get("classification", "")
 
-        return classification, malicious_count + suspicious_count >= 4 and classification in ["suspicious", "malicious"]
+        return classification, malicious_count + suspicious_count >= 4 #and classification in ["suspicious", "malicious"]
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while making the API call: {e}")
