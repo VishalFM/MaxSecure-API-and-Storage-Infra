@@ -59,7 +59,8 @@ def search_malicious_url():
             return jsonify({"status": 0, "error": f"Error decoding URL: {str(e)}"}), 500
 
         md5_hash = get_md5_from_url(url)
-
+        print("url > ", url)
+        print("md5 > ",md5_hash)
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
         if cached_result:
             vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
