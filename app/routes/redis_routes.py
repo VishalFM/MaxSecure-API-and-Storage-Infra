@@ -64,10 +64,10 @@ def search_malicious_url():
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
         if cached_result:
             vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
-            if float(score) > 0.4:
-                return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200 
-            else:
-                return jsonify({"status": 0}), 200 
+            # if float(score) > 0.4:
+            return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200 
+            # else:
+            #     return jsonify({"status": 0}), 200 
 
         classification, is_malicious = check_in_RL_API(url)
 

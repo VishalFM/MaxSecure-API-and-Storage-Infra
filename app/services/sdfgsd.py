@@ -186,8 +186,8 @@ def databaseInsert(data, batch_size=1000):
             conn.close()
 
 if __name__ == "__main__":
-    # base_folder_path = "/home/ubuntu/Files/17-12-24MURL/20-12-24"
-    base_folder_path = "/home/ubuntu/Files/AvtestURL"
+    base_folder_path = "/home/ubuntu/Files/17-12-24MURL/20-12-24"
+    # base_folder_path = "/home/ubuntu/Files/AvtestURL"
     # base_folder_path = "/home/ubuntu/Files/Av-Test Free URl"
     # base_folder_path = "/Users/VISHAL/OneDrive/Desktop/Flairminds/Fable malware detection - Master/Test Data"
     process_folder_structure(base_folder_path)
