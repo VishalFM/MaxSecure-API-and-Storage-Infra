@@ -37,8 +37,8 @@ def check_in_RL_API(url):
         return "unknown", False
 
 
-def check_in_VT_API(encoded_url):
-    encoded_url = encoded_url.rstrip("=")
+def check_in_VT_API(url):
+    encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
     api_url = Config.VT_ENDPOINT + encoded_url
     api_key = Config.VT_KEY
     headers = {
