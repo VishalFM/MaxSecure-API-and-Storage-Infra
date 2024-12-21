@@ -55,7 +55,7 @@ def check_in_VT_API(encoded_url):
         suspicious_count = data["data"]["attributes"]["last_analysis_stats"]["suspicious"]
         thread_names = data["data"]["attributes"]["threat_names"]
 
-        return malicious_count + suspicious_count >= 4 and thread_names
+        return malicious_count + suspicious_count >= 4 #and thread_names
     
     except requests.exceptions.RequestException as e:  
         print(f"Request failed: {e}")
