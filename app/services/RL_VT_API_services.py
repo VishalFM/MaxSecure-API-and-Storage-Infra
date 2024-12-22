@@ -22,20 +22,20 @@ def check_in_RL_API(url):
         response.raise_for_status()
         data = response.json()
 
+        # Extract statistics
         statistics = data.get("rl", {}).get("third_party_reputations", {}).get("statistics", {})
         malicious_count = statistics.get("malicious", 0)
         suspicious_count = statistics.get("suspicious", 0)
-        classification = data.get("rl", {}).get("classification", "")
+        # classification = data.get("rl", {}).get("classification", "")
 
-        return classification, malicious_count + suspicious_count >= 4 #and classification in ["suspicious", "malicious"]
+        return malicious_count + suspicious_count
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while making the API call: {e}")
-        return "unknown", False
+        return "unknown", 0
     except json.JSONDecodeError:
         print("Failed to parse the API response as JSON.")
-        return "unknown", False
-
+        return "unknown", 0
 
 def check_in_VT_API(url):
     encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
@@ -45,21 +45,22 @@ def check_in_VT_API(url):
         "accept": "application/json",
         "x-apikey": api_key
     }
+
     try:
         response = requests.get(api_url, headers=headers)
         response.raise_for_status()
-
         data = response.json()
 
-        malicious_count = data["data"]["attributes"]["last_analysis_stats"]["malicious"]
-        suspicious_count = data["data"]["attributes"]["last_analysis_stats"]["suspicious"]
-        thread_names = data["data"]["attributes"]["threat_names"]
+        # Extract statistics
+        stats = data["data"]["attributes"]["last_analysis_stats"]
+        malicious_count = stats.get("malicious", 0)
+        suspicious_count = stats.get("suspicious", 0)
 
-        return malicious_count + suspicious_count >= 4 #and thread_names
-    
-    except requests.exceptions.RequestException as e:  
+        return malicious_count + suspicious_count
+
+    except requests.exceptions.RequestException as e:
         print(f"Request failed: {e}")
-        return False
+        return 0
     except KeyError as e:
         print(f"Unexpected response structure: {e}")
-        return False
+        return 0

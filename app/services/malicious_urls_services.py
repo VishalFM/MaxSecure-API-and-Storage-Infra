@@ -134,3 +134,52 @@ def search_malicious_urls_service(url=None, md5=None, main_domain=None, main_dom
 
     except Exception as e:
         return {"error": f"An error occurred: {str(e)}"}, False
+
+def insert_malicious_url(record):
+    try:
+        # Normalize and prepare data
+        vendor_name = record['VendorName'].strip()
+        normalized_url = record['URL'].strip().lower()
+        domain = urlparse(normalized_url).netloc
+        md5_url = get_md5_from_url(normalized_url)
+        md5_domain = get_md5_from_url(domain)
+        cache_value = f"{record['EntryStatus']}|{record.get('Score', 0.0)}|{vendor_name}"
+
+        # Get Vendor ID
+        validate_and_insert_sources([{"Name": vendor_name}], ignore_existing_sources=True)
+        vendor_id = get_source_ids([vendor_name]).get(vendor_name)
+
+        # Check existing record in the database
+        existing = db.session.query(MaliciousURLs).filter_by(MD5=md5_url, VendorID=vendor_id).first()
+        if existing:
+            if existing.EntryStatus != record['EntryStatus'] or existing.Score != record.get('Score', 0.0):
+                existing.EntryStatus = record['EntryStatus']
+                existing.Score = record.get('Score', 0.0)
+        else:
+            new_url = MaliciousURLs(
+                URL=record['URL'].strip(),
+                VendorID=vendor_id,
+                EntryStatus=record['EntryStatus'],
+                Score=record.get('Score', 0.0),
+                MD5=md5_url,
+                MainDomain=domain,
+                Main_domain_MD5=md5_domain
+            )
+            db.session.add(new_url)
+
+        # Commit the database transaction
+        db.session.commit()
+
+        print("inserted into pg now inserting into redis")
+        # Insert into Redis
+        redis_service.bulk_insert_cache([(md5_url, cache_value)], "malicious_url")
+        print(" inserted into malicisous uel redis")
+
+        redis_service.bulk_insert_cache([(md5_domain, cache_value)], "main_domain_url")
+        print(" inserted into main donmain url redis")
+
+        return {"message": "Record inserted/updated successfully"}, True
+    except Exception as e:
+        print("erro : ",e)
+        db.session.rollback()
+        return {"error": f"An error occurred: {str(e)}"}, False

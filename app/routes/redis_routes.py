@@ -4,6 +4,7 @@ import binascii
 from concurrent.futures import ThreadPoolExecutor
 from flask import Blueprint, request, jsonify
 from app.services.RL_VT_API_services import check_in_RL_API, check_in_VT_API
+from app.services.malicious_urls_services import insert_malicious_url
 from app.services.redis_services import search_in_cache, search_in_malware_cache, search_in_white_cache, RedisService
 import threading
 from app.utils.parse_url import extract_main_domain, get_main_domain, get_md5_from_url
@@ -48,6 +49,7 @@ def search_malicious_url():
 
         if not encoded_url:
             return jsonify({"status": 0, "error": "URL parameter is required"}), 400
+        
         try:
             if is_base:
                 url = base64.b64decode(encoded_url).decode('utf-8')
@@ -58,25 +60,36 @@ def search_malicious_url():
         except Exception as e:
             return jsonify({"status": 0, "error": f"Error decoding URL: {str(e)}"}), 500
 
+        # Calculate MD5 hash of the URL
         md5_hash = get_md5_from_url(url)
-        print("url > ", url)
-        print("md5 > ",md5_hash)
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
         if cached_result:
             vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
-            # if float(score) > 0.4:
-            return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200 
-            # else:
-            #     return jsonify({"status": 0}), 200 
+            return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200
 
-        classification, is_malicious = check_in_RL_API(url)
+        # Check using RL API
+        rl_score = check_in_RL_API(url)
+        if rl_score >= 4 : 
+            record = {
+                "VendorName": "RL",
+                "URL": url,
+                "EntryStatus": 1,
+                "Score": rl_score
+            }
+            insert_malicious_url(record)
+            return jsonify({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
 
-        if is_malicious:
-            return jsonify({"status": 2, "source": 3}), 200
-
-        # if classification == "unknown" and check_in_VT_API(encoded_url):
-        if check_in_VT_API(encoded_url):
-            return jsonify({"status": 2, "source": 4}), 200
+        # Check using VT API
+        vt_score = check_in_VT_API(url)
+        if vt_score >= 4:  
+            record = {
+                "VendorName": "VT",
+                "URL": url,
+                "EntryStatus": 1,
+                "Score": vt_score
+            }
+            insert_malicious_url(record)
+            return jsonify({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}), 200
 
         return jsonify({"status": 0}), 200
 

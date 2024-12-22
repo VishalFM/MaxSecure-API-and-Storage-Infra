@@ -94,6 +94,7 @@ class RedisService:
 
     def bulk_insert_cache(self, cache_data, cache_type):
         try:
+            print("In bulk_insert_cache ", cache_type)
             redis_cache = (
                 self.redis_malicious_url if cache_type == "malicious_url" 
                 else self.redis_malicious_Main_Domain_url
@@ -104,6 +105,7 @@ class RedisService:
                     pipeline.set(md5_hash, value)
             pipeline.execute()
         except redis.exceptions.RedisError:
+            print(f"Error occured while inserting into {cache_type} Redis Cache")
             pass
 
     def _common_cache_search(self, hash_value, redis_client):
