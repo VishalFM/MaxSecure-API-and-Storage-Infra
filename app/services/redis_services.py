@@ -88,10 +88,14 @@ class RedisService:
         except Exception as e:
             return False
 
-    def delete_from_redis(signature):
+    def delete_from_redis(self, signature):
         redis_service.redis_white.delete(signature)
         redis_service.redis_malware.delete(signature)
 
+    def delete_bulk_from_redis(self, signatures):
+        for signature in signatures:
+            self.delete_from_redis(signature)
+            
     def bulk_insert_cache(self, cache_data, cache_type):
         try:
             print("In bulk_insert_cache ", cache_type)

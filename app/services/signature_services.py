@@ -124,27 +124,34 @@ def bulk_insert_signatures(signatures_data):
         db.session.rollback()
         return {"error": f"An error occurred: {str(e)}", "inserted_count": 0}, False
 
-def delete_signature(signature):
+def delete_signatures(signatures):
     try:
+        # Delete related hits from the "Hits" table
         delete_hits_query = db.text("""
-            DELETE FROM "Hits" WHERE "SignatureTableID" = (SELECT "ID" FROM "Signature" WHERE "Signature" = :signature)
+            DELETE FROM "Hits" 
+            WHERE "SignatureTableID" IN (
+                SELECT "ID" FROM "Signature" WHERE "Signature" = ANY(:signatures)
+            )
         """)
-        db.session.execute(delete_hits_query, {'signature': signature})
+        db.session.execute(delete_hits_query, {'signatures': signatures})
 
-        delete_query = db.text("""
-            DELETE FROM "Signature" WHERE "Signature" = :signature
+        # Delete signatures from the "Signature" table
+        delete_signatures_query = db.text("""
+            DELETE FROM "Signature" WHERE "Signature" = ANY(:signatures)
         """)
-        db.session.execute(delete_query, {'signature': signature})
+        db.session.execute(delete_signatures_query, {'signatures': signatures})
 
-        redis_service.delete_from_redis(signature)
-        
+        # Delete signatures from Redis
+        for signature in signatures:
+            redis_service.delete_from_redis(signature)
+
         db.session.commit()
-        return {"message": f"Signature '{signature}' deleted successfully."}, True
+        return {"message": f"Signatures {signatures} deleted successfully."}, True
 
     except Exception as e:
         db.session.rollback()
-        return {"error": f"An error occurred while deleting the signature: {str(e)}"}, False
-   
+        return {"error": f"An error occurred while deleting signatures: {str(e)}"}, False
+ 
 def update_signature(signature, signature_data):
     try:
         existing_signature = db.session.execute(db.text("""
