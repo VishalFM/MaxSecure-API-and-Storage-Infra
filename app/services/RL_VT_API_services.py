@@ -27,18 +27,23 @@ def check_in_RL_API(url):
         malicious_count = statistics.get("malicious", 0)
         suspicious_count = statistics.get("suspicious", 0)
         # classification = data.get("rl", {}).get("classification", "")
-
-        return malicious_count + suspicious_count
+        base64_encoded_url = data.get("rl", {}).get("base64", "")
+        
+        return malicious_count + suspicious_count, base64_encoded_url
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while making the API call: {e}")
-        return "unknown", 0
+        return 0, ""
     except json.JSONDecodeError:
         print("Failed to parse the API response as JSON.")
-        return "unknown", 0
+        return 0, ""
 
-def check_in_VT_API(url):
-    encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
+def check_in_VT_API(url, is_base):
+    if is_base:
+        encoded_url = url
+    else:
+        encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
+
     api_url = Config.VT_ENDPOINT + encoded_url
     api_key = Config.VT_KEY
     headers = {

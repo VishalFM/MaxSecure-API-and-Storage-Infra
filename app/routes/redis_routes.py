@@ -68,7 +68,7 @@ def search_malicious_url():
             return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200
 
         # Check using RL API
-        rl_score = check_in_RL_API(url)
+        rl_score, base64_encoded_url = check_in_RL_API(url)
         if rl_score >= 4 : 
             record = {
                 "VendorName": "RL",
@@ -80,8 +80,11 @@ def search_malicious_url():
             return jsonify({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
 
         # Check using VT API
-        vt_score = check_in_VT_API(url)
-        if vt_score >= 4:  
+        vt_score = check_in_VT_API(
+            base64_encoded_url if base64_encoded_url != "" else url, 
+            is_base=(base64_encoded_url != "")
+        )
+        if vt_score >= 4:
             record = {
                 "VendorName": "VT",
                 "URL": url,
