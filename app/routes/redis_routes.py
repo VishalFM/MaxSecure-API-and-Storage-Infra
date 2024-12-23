@@ -2,6 +2,7 @@ import base64
 # import binascii
 import binascii
 from concurrent.futures import ThreadPoolExecutor
+import time
 from flask import Blueprint, request, jsonify
 from app.services.RL_VT_API_services import check_in_RL_API, check_in_VT_API
 from app.services.malicious_urls_services import insert_malicious_url
@@ -44,10 +45,15 @@ def search(md5_signature):
 @search_bp.route('/searchMaliciousUrl', methods=['GET'])
 def search_malicious_url():
     try:
+        start_time = time.time()  # Record the start time for the entire function
+        function_name = "search_malicious_url"
+
         encoded_url = request.args.get('url')
         is_base = request.args.get('is_base', default='true', type=str).lower() == 'true'
 
         if not encoded_url:
+            execution_time = time.time() - start_time
+            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             return jsonify({"status": 0, "error": "URL parameter is required"}), 400
         
         try:
@@ -56,21 +62,37 @@ def search_malicious_url():
             else:
                 url = encoded_url
         except binascii.Error:
+            execution_time = time.time() - start_time
+            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             return jsonify({"status": 0, "error": "Invalid base64 encoding"}), 400
         except Exception as e:
+            execution_time = time.time() - start_time
+            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             return jsonify({"status": 0, "error": f"Error decoding URL: {str(e)}"}), 500
 
-        # Calculate MD5 hash of the URL
+        # Log time for get_md5_from_url
+        step_start_time = time.time()
         md5_hash = get_md5_from_url(url)
+        print(f"[TIME LOG] get_md5_from_url executed in {time.time() - step_start_time:.4f} seconds")
+
+        # Log time for Redis cache check
+        step_start_time = time.time()
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
+        print(f"[TIME LOG] redis_service.search_in_malicious_url_cache executed in {time.time() - step_start_time:.4f} seconds")
+
         if cached_result:
+            execution_time = time.time() - start_time
+            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
             return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200
 
-        # Check using RL API
+        # Log time for RL API check
+        step_start_time = time.time()
         rl_score, base64_encoded_url = check_in_RL_API(url)
-        print("rl score > ", rl_score)
-        if rl_score >= 4 : 
+        print(f"[TIME LOG] check_in_RL_API executed in {time.time() - step_start_time:.4f} seconds")
+
+        if rl_score >= 4:
+            step_start_time = time.time()
             record = {
                 "VendorName": "RL",
                 "URL": url,
@@ -78,16 +100,18 @@ def search_malicious_url():
                 "Score": rl_score
             }
             insert_malicious_url(record)
+            print(f"[TIME LOG] insert_malicious_url (RL) executed in {time.time() - step_start_time:.4f} seconds")
+            execution_time = time.time() - start_time
+            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             return jsonify({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
 
-        # Check using VT API
-        # vt_score = check_in_VT_API(
-        #     base64_encoded_url if base64_encoded_url != "" else url, 
-        #     is_base=(base64_encoded_url != "")
-        # )
+        # Log time for VT API check
+        step_start_time = time.time()
         vt_score = check_in_VT_API(url, False)
-        print("vt_score > ", vt_score)
+        print(f"[TIME LOG] check_in_VT_API executed in {time.time() - step_start_time:.4f} seconds")
+
         if vt_score >= 4:
+            step_start_time = time.time()
             record = {
                 "VendorName": "VT",
                 "URL": url,
@@ -95,9 +119,16 @@ def search_malicious_url():
                 "Score": vt_score
             }
             insert_malicious_url(record)
+            print(f"[TIME LOG] insert_malicious_url (VT) executed in {time.time() - step_start_time:.4f} seconds")
+            execution_time = time.time() - start_time
+            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             return jsonify({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}), 200
 
+        execution_time = time.time() - start_time
+        print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
         return jsonify({"status": 0}), 200
 
     except Exception as e:
+        execution_time = time.time() - start_time
+        print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
         return jsonify({"status": 0, "error": f"Internal server error: {str(e)}"}), 500

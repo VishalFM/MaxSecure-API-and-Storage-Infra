@@ -29,7 +29,7 @@ def check_in_RL_API(url):
         # classification = data.get("rl", {}).get("classification", "")
         base64_encoded_url = data.get("rl", {}).get("base64", "")
         
-        print("base64_encoded_url > ", base64_encoded_url)
+        # print("base64_encoded_url > ", base64_encoded_url)
         return malicious_count + suspicious_count, base64_encoded_url
 
     except requests.exceptions.RequestException as e:
@@ -40,16 +40,16 @@ def check_in_RL_API(url):
         return 0, ""
 
 def check_in_VT_API(url, is_base):
-    print("asdasdasd")
-    print("url > ", url)
+    # print("asdasdasd")
+    # print("url > ", url)
     if is_base:
         encoded_url = url
     else:
         encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
 
-    print(" Config.VT_ENDPOINT >",  Config.VT_ENDPOINT + encoded_url)
+    # print(" Config.VT_ENDPOINT >",  Config.VT_ENDPOINT + encoded_url)
     api_url = Config.VT_ENDPOINT + encoded_url
-    print("API URL > ", api_url)
+    # print("API URL > ", api_url)
     api_key = Config.VT_KEY
     headers = {
         "accept": "application/json",
@@ -65,8 +65,8 @@ def check_in_VT_API(url, is_base):
         stats = data["data"]["attributes"]["last_analysis_stats"]
         malicious_count = stats.get("malicious", 0)
         suspicious_count = stats.get("suspicious", 0)
-        print("malicious_count > ", malicious_count )
-        print("suspicious_count > ", suspicious_count )
+        # print("malicious_count > ", malicious_count )
+        # print("suspicious_count > ", suspicious_count )
         return malicious_count + suspicious_count
 
     except requests.exceptions.RequestException as e:
