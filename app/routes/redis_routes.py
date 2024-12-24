@@ -52,6 +52,8 @@ def search_malicious_url():
         encoded_url = request.args.get('url')
         is_base = request.args.get('is_base', default='true', type=str).lower() == 'true'
 
+        print("\n\n\nURL > ", encoded_url)
+
         if not encoded_url:
             execution_time = time.time() - start_time
             print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
@@ -83,7 +85,6 @@ def search_malicious_url():
 
         cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
         print(f"[TIME LOG] redis_service.search_in_White_main_domain_url_cache executed in {time.time() - step_start_time:.4f} seconds")
-        print("________________________________cached_result > ", cached_result)
 
         if cached_result:
             execution_time = time.time() - start_time
@@ -120,9 +121,7 @@ def search_malicious_url():
             return jsonify({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
         if classification in ['known'] or rl_score <= 3:
             white_domain_url = urlparse(url).netloc
-            print("white_domain_url > ", white_domain_url)
             md5_white_domain_url = get_md5_from_url(white_domain_url)
-            print("md5_white_domain_url > ", md5_white_domain_url)
             cache_value = f"{0}|{rl_score}|{'RL'}"
             redis_service.bulk_insert_cache([(md5_white_domain_url, cache_value)], "white_main_domain_url")
 
@@ -147,9 +146,7 @@ def search_malicious_url():
         
         if vt_score <= 3:
             white_domain_url = urlparse(url).netloc
-            print("white_domain_url > ", white_domain_url)
             md5_white_domain_url = get_md5_from_url(white_domain_url)
-            print("md5_white_domain_url > ", md5_white_domain_url)
             cache_value = f"{0}|{vt_score}|{'VT'}"
             redis_service.bulk_insert_cache([(md5_white_domain_url, cache_value)], "white_main_domain_url")
 
