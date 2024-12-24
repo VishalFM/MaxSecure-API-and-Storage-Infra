@@ -83,6 +83,7 @@ def search_malicious_url():
         domain_url = urlparse(url).netloc
         md5_domain_url = get_md5_from_url(domain_url)
 
+        print("MD5 of main domain > ", md5_domain_url)
         cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
         print(f"[TIME LOG] redis_service.search_in_White_main_domain_url_cache executed in {time.time() - step_start_time:.4f} seconds")
 
