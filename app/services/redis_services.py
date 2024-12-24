@@ -45,6 +45,16 @@ class RedisService:
         )
         self.redis_malicious_Main_Domain_url = redis.StrictRedis(connection_pool=pool_main_domain)
 
+        # New custom cache connection
+        pool_white_Domain_cache = redis.ConnectionPool(
+            host=Config.REDIS_HOST,
+            port=Config.REDIS_PORT,
+            password=Config.REDIS_PASSWORD,
+            db=Config.REDIS_DB_CUSTOM_CACHE,
+            decode_responses=True,
+            max_connections=100
+        )
+        self.redis_white_Domain_cache = redis.StrictRedis(connection_pool=pool_white_Domain_cache)
         self.lock = threading.Lock()
 
     def check_redis_connection(self):
@@ -64,6 +74,7 @@ class RedisService:
         except redis.exceptions.ConnectionError as e:
             return {"status": f"Error connecting to Redis: {e}"}, 500
 
+    # for signature
     def save_to_redis(self, signature_map_white, signature_map_malware):
         try:
             with self.redis_white.pipeline() as white_pipeline, self.redis_malware.pipeline() as malware_pipeline:
@@ -99,10 +110,7 @@ class RedisService:
     def bulk_insert_cache(self, cache_data, cache_type):
         try:
             print("In bulk_insert_cache ", cache_type)
-            redis_cache = (
-                self.redis_malicious_url if cache_type == "malicious_url" 
-                else self.redis_malicious_Main_Domain_url
-            )
+            redis_cache = self.get_redis_cache(cache_type)
             pipeline = redis_cache.pipeline()
             for md5_hash, value in cache_data:
                 if not redis_cache.exists(md5_hash):
@@ -111,6 +119,15 @@ class RedisService:
         except redis.exceptions.RedisError:
             print(f"Error occured while inserting into {cache_type} Redis Cache")
             pass
+
+    def get_redis_cache(self, cache_type):
+        match cache_type:
+            case "malicious_url":
+                return self.redis_malicious_url
+            case "main_domain_url":
+                return self.redis_malicious_url
+            case "white_main_domain_url":
+                return self.redis_white_Domain_cache
 
     def _common_cache_search(self, hash_value, redis_client):
         try:
@@ -124,6 +141,9 @@ class RedisService:
     def search_in_domain_cache(self, domain_hash):
         return self._common_cache_search(domain_hash, self.redis_malicious_Main_Domain_url, is_domain=True)
     
+    def search_in_White_main_domain_url_cache(self, md5_hash):
+        return self._common_cache_search(md5_hash, self.redis_malicious_Main_Domain_url)
+    
 redis_service = RedisService()
 
 def update_redis_cache_in_thread(record):
@@ -134,7 +154,7 @@ def search_in_white_cache(md5_signature, result_dict, event):
 
     if redis_service.redis_white.exists(redis_key):
         result_dict["found_in_white"] = True
-        result_dict["status"] = 0
+        result_dict["status"] =   []
         event.set()
     else:
         result_dict["found_in_white"] = False

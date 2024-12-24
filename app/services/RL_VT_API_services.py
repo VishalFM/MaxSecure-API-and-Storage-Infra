@@ -17,6 +17,9 @@ def check_in_RL_API(url):
         }
     }
 
+    print("payload ---> ", payload)
+    print("api_url ---> ", api_url)
+
     try:
         response = requests.post(api_url, json=payload, auth=(username, password))
         response.raise_for_status()

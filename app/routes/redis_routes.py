@@ -3,6 +3,7 @@ import base64
 import binascii
 from concurrent.futures import ThreadPoolExecutor
 import time
+from urllib.parse import urlparse
 from flask import Blueprint, request, jsonify
 from app.services.RL_VT_API_services import check_in_RL_API, check_in_VT_API
 from app.services.malicious_urls_services import insert_malicious_url
@@ -77,6 +78,18 @@ def search_malicious_url():
 
         # Log time for Redis cache check
         step_start_time = time.time()
+        domain_url = urlparse(url).netloc
+        md5_domain_url = get_md5_from_url(domain_url)
+
+        cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
+        print(f"[TIME LOG] redis_service.search_in_White_main_domain_url_cache executed in {time.time() - step_start_time:.4f} seconds")
+
+        if cached_result:
+            execution_time = time.time() - start_time
+            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
+            vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
+            return jsonify({"status": 0, "source": 1, "Vendor": vendor, "Score": score}), 200
+        
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
         print(f"[TIME LOG] redis_service.search_in_malicious_url_cache executed in {time.time() - step_start_time:.4f} seconds")
 
@@ -88,7 +101,7 @@ def search_malicious_url():
 
         # Log time for RL API check
         step_start_time = time.time()
-        rl_score, base64_encoded_url = check_in_RL_API(url)
+        rl_score, base64_encoded_url, classification = check_in_RL_API(url)
         print(f"[TIME LOG] check_in_RL_API executed in {time.time() - step_start_time:.4f} seconds")
 
         if rl_score >= 4:
@@ -104,6 +117,13 @@ def search_malicious_url():
             execution_time = time.time() - start_time
             print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             return jsonify({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
+        if classification in ['known'] or rl_score <= 3:
+            white_domain_url = urlparse(url).netloc
+            print("white_domain_url > ", white_domain_url)
+            md5_white_domain_url = get_md5_from_url(white_domain_url)
+            print("md5_white_domain_url > ", md5_white_domain_url)
+            cache_value = f"{0}|{rl_score}|{'RL'}"
+            redis_service.bulk_insert_cache([(md5_white_domain_url, cache_value)], "white_main_domain_url")
 
         # Log time for VT API check
         step_start_time = time.time()
@@ -123,6 +143,14 @@ def search_malicious_url():
             execution_time = time.time() - start_time
             print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             return jsonify({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}), 200
+        
+        if vt_score <= 3:
+            white_domain_url = urlparse(url).netloc
+            print("white_domain_url > ", white_domain_url)
+            md5_white_domain_url = get_md5_from_url(white_domain_url)
+            print("md5_white_domain_url > ", md5_white_domain_url)
+            cache_value = f"{0}|{vt_score}|{'VT'}"
+            redis_service.bulk_insert_cache([(md5_white_domain_url, cache_value)], "white_main_domain_url")
 
         execution_time = time.time() - start_time
         print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
