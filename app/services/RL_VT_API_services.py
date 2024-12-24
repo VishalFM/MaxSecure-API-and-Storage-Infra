@@ -29,11 +29,11 @@ def check_in_RL_API(url):
         statistics = data.get("rl", {}).get("third_party_reputations", {}).get("statistics", {})
         malicious_count = statistics.get("malicious", 0)
         suspicious_count = statistics.get("suspicious", 0)
-        # classification = data.get("rl", {}).get("classification", "")
+        classification = data.get("rl", {}).get("classification", "")
         base64_encoded_url = data.get("rl", {}).get("base64", "")
         
         # print("base64_encoded_url > ", base64_encoded_url)
-        return malicious_count + suspicious_count, base64_encoded_url
+        return malicious_count + suspicious_count, base64_encoded_url, classification
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while making the API call: {e}")

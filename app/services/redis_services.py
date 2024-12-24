@@ -50,7 +50,7 @@ class RedisService:
             host=Config.REDIS_HOST,
             port=Config.REDIS_PORT,
             password=Config.REDIS_PASSWORD,
-            db=Config.REDIS_DB_CUSTOM_CACHE,
+            db=Config.REDIS_DB_WHITE_DOMAIN_URL,
             decode_responses=True,
             max_connections=100
         )
@@ -142,7 +142,7 @@ class RedisService:
         return self._common_cache_search(domain_hash, self.redis_malicious_Main_Domain_url, is_domain=True)
     
     def search_in_White_main_domain_url_cache(self, md5_hash):
-        return self._common_cache_search(md5_hash, self.redis_malicious_Main_Domain_url)
+        return self._common_cache_search(md5_hash, self.redis_white_Domain_cache)
     
 redis_service = RedisService()
 

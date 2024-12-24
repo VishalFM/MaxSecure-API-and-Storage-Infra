@@ -25,6 +25,7 @@ class Config:
     REDIS_DB_WHITE = int(os.getenv('REDIS_DB_WHITE', 1))
     REDIS_DB_MALICIOUS_URL = int(os.getenv('REDIS_DB_MALICIOUS_URL', 2))
     REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL = int(os.getenv('REDIS_DB_MALICIOUS_MAIN_DOMAIN_URL', 3))
+    REDIS_DB_WHITE_DOMAIN_URL =  int(os.getenv('REDIS_DB_WHITE_DOMAIN_URL', 4))
     
     RL_ENDPOINT = os.getenv('RL_ENDPOINT', 'Not Configured')
     RL_USERNAME = os.getenv('RL_USERNAME', 'Not Configured')

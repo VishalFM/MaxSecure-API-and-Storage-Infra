@@ -183,3 +183,4 @@ def insert_malicious_url(record):
         print("erro : ",e)
         db.session.rollback()
         return {"error": f"An error occurred: {str(e)}"}, False
+

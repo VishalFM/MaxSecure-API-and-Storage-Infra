@@ -83,6 +83,7 @@ def search_malicious_url():
 
         cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
         print(f"[TIME LOG] redis_service.search_in_White_main_domain_url_cache executed in {time.time() - step_start_time:.4f} seconds")
+        print("________________________________cached_result > ", cached_result)
 
         if cached_result:
             execution_time = time.time() - start_time
