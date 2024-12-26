@@ -83,15 +83,6 @@ def search_malicious_url():
         domain_url = urlparse(url).netloc
         md5_domain_url = get_md5_from_url(domain_url)
 
-        print("MD5 of main domain > ", md5_domain_url)
-        cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
-        print(f"[TIME LOG] redis_service.search_in_White_main_domain_url_cache executed in {time.time() - step_start_time:.4f} seconds")
-
-        if cached_result:
-            execution_time = time.time() - start_time
-            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
-            vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
-            return jsonify({"status": 0, "source": 1, "Vendor": vendor, "Score": score}), 200
         
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
         print(f"[TIME LOG] redis_service.search_in_malicious_url_cache executed in {time.time() - step_start_time:.4f} seconds")
@@ -101,6 +92,16 @@ def search_malicious_url():
             print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
             return jsonify({"status": 2, "source": 1, "Vendor": vendor, "Score": score}), 200
+        
+        print("MD5 of main domain > ", md5_domain_url)
+        cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
+        print(f"[TIME LOG] redis_service.search_in_White_main_domain_url_cache executed in {time.time() - step_start_time:.4f} seconds")
+
+        if cached_result:
+            execution_time = time.time() - start_time
+            print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
+            vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
+            return jsonify({"status": 0, "source": 1, "Vendor": vendor, "Score": score}), 200
 
         # Log time for RL API check
         step_start_time = time.time()
