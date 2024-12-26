@@ -75,7 +75,7 @@ def check_in_VT_API(url, is_base):
 
     except requests.exceptions.RequestException as e:
         print(f"Request failed: {e}")
-        return 0
+        return -1
     except KeyError as e:
         print(f"Unexpected response structure: {e}")
-        return 0
+        return -1
