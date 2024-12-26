@@ -37,10 +37,10 @@ def check_in_RL_API(url):
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while making the API call: {e}")
-        return 0, ""
+        return 0, "", ""
     except json.JSONDecodeError:
         print("Failed to parse the API response as JSON.")
-        return 0, ""
+        return 0, "", ""
 
 def check_in_VT_API(url, is_base):
     # print("asdasdasd")
