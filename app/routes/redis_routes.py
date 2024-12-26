@@ -121,7 +121,7 @@ def search_malicious_url():
             execution_time = time.time() - start_time
             print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             return jsonify({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
-        if (classification in ['known'] and rl_score <= 3):
+        if (classification in ['known'] and rl_score == 0):
             white_domain_url = urlparse(url).netloc
             md5_white_domain_url = get_md5_from_url(white_domain_url)
             cache_value = f"{0}|{rl_score}|{'RL'}"
