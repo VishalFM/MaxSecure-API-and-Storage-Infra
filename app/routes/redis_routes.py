@@ -101,7 +101,7 @@ def search_malicious_url():
             execution_time = time.time() - start_time
             print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
             vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
-            return jsonify({"status": 0, "source": 1, "Vendor": vendor, "Score": score}), 200
+            return jsonify({"status": 0, "source": 2, "Vendor": vendor, "Score": score}), 200
 
         # Log time for RL API check
         step_start_time = time.time()
