@@ -157,7 +157,7 @@ def search_malicious_url():
 
             execution_time = time.time() - start_time
             print(f"[TIME LOG] {function_name} executed in {execution_time:.4f} seconds")
-            return jsonify({"status": -1 }), 200
+            return jsonify({"status": -1}), 200
 
     except Exception as e:
         execution_time = time.time() - start_time
