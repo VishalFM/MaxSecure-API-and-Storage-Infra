@@ -18,11 +18,12 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
         sources = [{"Name": record['VendorName'].strip()} for record in urls_data]
         validate_and_insert_sources(sources, ignore_existing_sources=True)
         source_ids = get_source_ids([src["Name"] for src in sources])
-
+        print("here")
         inserted_count = updated_count = 0
         malicious_cache, domain_cache = [], []
         new_urls = []
 
+        print("here")
         for i in range(0, len(urls_data), batch_size):
             batch = urls_data[i:i + batch_size]
             new_urls.clear()
@@ -31,15 +32,17 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                 vendor_name = record['VendorName'].strip()
                 vendor_id = source_ids.get(vendor_name)
                 normalized_url = record['URL'].strip().lower()
-                domain = urlparse(normalized_url).netloc
+                parsed_url = urlparse(normalized_url)   
+                domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
                 md5_url, md5_domain = get_md5_from_url(normalized_url), get_md5_from_url(domain)
                 cache_value = f"{record['EntryStatus']}|{record.get('Score', 0.0)}|{vendor_name}"
 
                 malicious_cache.append((md5_url, cache_value))
                 domain_cache.append((md5_domain, cache_value))
                 key = (md5_url, vendor_id)
-
+                print("key > ", key)
                 if key in existing_pairs:
+                    print("existing_pairs[key] > ", existing_pairs[key])
                     existing = existing_pairs[key]
                     if existing.EntryStatus != record['EntryStatus'] or existing.Score != record.get('Score', 0.0):
                         existing.EntryStatus = record['EntryStatus']
@@ -60,12 +63,13 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
             if new_urls:
                 db.session.bulk_save_objects(new_urls)
                 db.session.commit()
-
+            print("here")
             redis_service.bulk_insert_cache(malicious_cache, "malicious_url")
             redis_service.bulk_insert_cache(domain_cache, "main_domain_url")
 
             malicious_cache.clear()
             domain_cache.clear()
+        print("here")
 
         return {
             "message": f"Processing completed. Inserted: {inserted_count}, Updated: {updated_count}"
@@ -145,10 +149,12 @@ def insert_malicious_url(record):
         md5_domain = get_md5_from_url(domain)
         cache_value = f"{record['EntryStatus']}|{record.get('Score', 0.0)}|{vendor_name}"
 
+        print("here")
         # Get Vendor ID
         validate_and_insert_sources([{"Name": vendor_name}], ignore_existing_sources=True)
         vendor_id = get_source_ids([vendor_name]).get(vendor_name)
 
+        print("here")
         # Check existing record in the database
         existing = db.session.query(MaliciousURLs).filter_by(MD5=md5_url, VendorID=vendor_id).first()
         if existing:
@@ -169,6 +175,7 @@ def insert_malicious_url(record):
 
         # Commit the database transaction
         db.session.commit()
+        print("here")
 
         print("inserted into pg now inserting into redis")
         # Insert into Redis
