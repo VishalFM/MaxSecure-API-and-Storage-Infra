@@ -122,11 +122,17 @@ class RedisService:
     
     def update_cache(self, key, value, cache_type):
         try:
-            if cache_type == "white_main_domain_url":
-                self.redis_white_Domain_cache.set(key, value)
+            self.get_redis_cache(cache_type).set(key, value)
             # Add other cache types if necessary
         except redis.exceptions.RedisError as e:
             raise Exception(f"Redis update error: {str(e)}")
+        
+    def remove_keys(self, keys, cache_type):
+        try:
+            # Delete the keys from Redis
+            self.get_redis_cache(cache_type).delete(*keys)
+        except Exception as e:
+            print(f"An error occurred while removing keys: {e}")
 
     def get_redis_cache(self, cache_type):
         match cache_type:

@@ -21,7 +21,7 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
         source_ids = get_source_ids([src["Name"] for src in sources])
         print("here")
         inserted_count = updated_count = 0
-        malicious_cache, malicious_domain_cache, white_domain_cache = [], [], []
+        malicious_cache, malicious_domain_cache, white_domain_cache, del_malicious_domain_cache, del_white_domain_cache = [], [], [], [], []
         new_urls = []
         current_date = datetime.utcnow().strftime('%Y-%m-%d')
 
@@ -43,8 +43,10 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                 malicious_cache.append((md5_url, cache_value))
                 if record['EntryStatus'] == 1 or record['EntryStatus'] == "1":
                     malicious_domain_cache.append((md5_domain, cache_value))
+                    del_white_domain_cache.append(md5_domain)
                 else:
                     white_domain_cache.append((md5_domain, cache_value_for_white))
+                    del_malicious_domain_cache.append(md5_domain)
                 
                 key = (md5_url, vendor_id)
                 print("key > ", key)
@@ -73,6 +75,9 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
             print("here")
             redis_service.bulk_insert_cache(malicious_cache, "malicious_url")
             redis_service.bulk_insert_cache(malicious_domain_cache, "main_domain_url")
+            redis_service.bulk_insert_cache(white_domain_cache, "white_main_domain_url")
+            redis_service.remove_keys(del_malicious_domain_cache, "main_domain_url")
+            redis_service.remove_keys(del_white_domain_cache, "white_main_domain_url")
 
             malicious_cache.clear()
             malicious_domain_cache.clear()
