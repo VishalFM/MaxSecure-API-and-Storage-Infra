@@ -141,6 +141,9 @@ class MaliciousURLs(db.Model):
     def __repr__(self):
         return f"<MaliciousURLs(ID={self.ID}, URL={self.URL}, VendorID={self.VendorID}, EntryStatus={self.EntryStatus}, Score={self.Score}, MainDomain={self.MainDomain})>"
 
+from datetime import datetime
+from sqlalchemy.sql import func
+
 class WhiteMainDomainURL(db.Model):
     __tablename__ = "WhiteMainDomainURL"
 
@@ -150,6 +153,8 @@ class WhiteMainDomainURL(db.Model):
     EntryStatus = db.Column(db.Integer, nullable=False)
     Vendor = db.Column(db.String(100), nullable=True)
     counter = db.Column(db.Integer, default=0)
+    InsertDate = db.Column(db.DateTime, default=func.now(), nullable=False)
+    UpdateDate = db.Column(db.DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
     def __init__(self, URL, MD5, EntryStatus, Vendor=None, counter=0):
         self.URL = URL
@@ -159,5 +164,6 @@ class WhiteMainDomainURL(db.Model):
         self.counter = counter
 
     def __repr__(self):
-        return f"<WhiteMainDomainURL(ID={self.ID}, URL={self.URL}, MD5={self.MD5}, EntryStatus={self.EntryStatus}, Vendor={self.Vendor}, counter={self.counter})>"
-    
+        return (f"<WhiteMainDomainURL(ID={self.ID}, URL={self.URL}, MD5={self.MD5}, "
+                f"EntryStatus={self.EntryStatus}, Vendor={self.Vendor}, counter={self.counter}, "
+                f"InsertDate={self.InsertDate}, UpdateDate={self.UpdateDate})>")

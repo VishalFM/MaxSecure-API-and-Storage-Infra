@@ -8,7 +8,7 @@ def insert_white_main_domain_url(data):
 
         if existing_record:
             existing_record.counter += 1
-            existing_record.update_date = datetime.utcnow()  
+            existing_record.UpdateDate = datetime.utcnow()  
             print("Updated >>>")
         else:
             white_main_domain_url = WhiteMainDomainURL(
@@ -16,9 +16,7 @@ def insert_white_main_domain_url(data):
                 MD5=data['MD5'],
                 EntryStatus=data['EntryStatus'],
                 Vendor=data.get('Vendor'),
-                counter=data.get('counter', 0),
-                insert_date=datetime.utcnow(),  
-                update_date=datetime.utcnow()   
+                counter=data.get('counter', 0)
             )
             db.session.add(white_main_domain_url)   
             print("Inserted >>>")
@@ -27,4 +25,5 @@ def insert_white_main_domain_url(data):
 
     except Exception as e:
         db.session.rollback()
+        print("<<<<<<<<<<<<<<<<ERROR>>>>>>>>>>>>>>>>>>>>", e)
         return {"error": str(e), "inserted": False}
