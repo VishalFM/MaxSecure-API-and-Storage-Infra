@@ -1,3 +1,4 @@
+from datetime import datetime
 import hashlib
 from urllib.parse import urlparse
 from app.models.model import MaliciousURLs, Source
@@ -20,8 +21,9 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
         source_ids = get_source_ids([src["Name"] for src in sources])
         print("here")
         inserted_count = updated_count = 0
-        malicious_cache, domain_cache = [], []
+        malicious_cache, malicious_domain_cache, white_domain_cache = [], [], []
         new_urls = []
+        current_date = datetime.utcnow().strftime('%Y-%m-%d')
 
         print("here")
         for i in range(0, len(urls_data), batch_size):
@@ -36,9 +38,14 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                 domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
                 md5_url, md5_domain = get_md5_from_url(normalized_url), get_md5_from_url(domain)
                 cache_value = f"{record['EntryStatus']}|{record.get('Score', 0.0)}|{vendor_name}"
+                cache_value_for_white = f"0|{record.get('Score', 0.0)}|{vendor_name}|{current_date}|0"
 
                 malicious_cache.append((md5_url, cache_value))
-                domain_cache.append((md5_domain, cache_value))
+                if record['EntryStatus'] == 1 or record['EntryStatus'] == "1":
+                    malicious_domain_cache.append((md5_domain, cache_value))
+                else:
+                    white_domain_cache.append((md5_domain, cache_value_for_white))
+                
                 key = (md5_url, vendor_id)
                 print("key > ", key)
                 if key in existing_pairs:
@@ -65,10 +72,10 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
             db.session.commit()
             print("here")
             redis_service.bulk_insert_cache(malicious_cache, "malicious_url")
-            redis_service.bulk_insert_cache(domain_cache, "main_domain_url")
+            redis_service.bulk_insert_cache(malicious_domain_cache, "main_domain_url")
 
             malicious_cache.clear()
-            domain_cache.clear()
+            malicious_domain_cache.clear()
         print("here")
 
         return {

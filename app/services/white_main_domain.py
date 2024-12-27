@@ -9,9 +9,7 @@ def insert_white_main_domain_url(data):
         if existing_record:
             existing_record.counter += 1
             existing_record.update_date = datetime.utcnow()  
-            db.session.commit()
             print("Updated >>>")
-            return True
         else:
             white_main_domain_url = WhiteMainDomainURL(
                 URL=data['URL'],
@@ -22,11 +20,10 @@ def insert_white_main_domain_url(data):
                 insert_date=datetime.utcnow(),  
                 update_date=datetime.utcnow()   
             )
-
             db.session.add(white_main_domain_url)   
-            db.session.commit()
             print("Inserted >>>")
-            return True
+        db.session.commit()
+        return True
 
     except Exception as e:
         db.session.rollback()

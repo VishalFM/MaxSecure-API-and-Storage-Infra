@@ -133,7 +133,7 @@ class RedisService:
             case "malicious_url":
                 return self.redis_malicious_url
             case "main_domain_url":
-                return self.redis_malicious_url
+                return self.redis_malicious_Main_Domain_url
             case "white_main_domain_url":
                 return self.redis_white_Domain_cache
 
