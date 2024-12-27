@@ -119,6 +119,14 @@ class RedisService:
         except redis.exceptions.RedisError:
             print(f"Error occured while inserting into {cache_type} Redis Cache")
             pass
+    
+    def update_cache(self, key, value, cache_type):
+        try:
+            if cache_type == "white_main_domain_url":
+                self.redis_white_Domain_cache.set(key, value)
+            # Add other cache types if necessary
+        except redis.exceptions.RedisError as e:
+            raise Exception(f"Redis update error: {str(e)}")
 
     def get_redis_cache(self, cache_type):
         match cache_type:
