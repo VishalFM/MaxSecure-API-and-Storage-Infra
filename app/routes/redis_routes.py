@@ -99,8 +99,8 @@ def search_malicious_url():
                 cache_counter = int(parts[4])
                 cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
                 current_date = datetime.utcnow().date()
-                RESCAN_COUNTER = Config.RESCAN_COUNTER
-                RESCAN_DAYS = Config.RESCAN_DAYS
+                RESCAN_COUNTER = int(Config.RESCAN_COUNTER)
+                RESCAN_DAYS = int(Config.RESCAN_DAYS)
                 if not(cache_counter < RESCAN_COUNTER and (current_date - cache_date).days > RESCAN_DAYS):
                     return handle_cached_result(cached_result, source=2)
                 
