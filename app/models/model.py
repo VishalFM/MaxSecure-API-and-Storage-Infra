@@ -122,7 +122,7 @@ class MaliciousURLs(db.Model):
     ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
     URL = db.Column(db.String(255), nullable=False, unique=True)
     VendorID = db.Column(db.Integer, db.ForeignKey('Source.ID'), nullable=False)
-    EntryStatus = db.Column(db.String(50), nullable=False)
+    EntryStatus = db.Column(db.Integer, nullable=False)
     Score = db.Column(db.Float, nullable=True, default=0.0)
     MD5 = db.Column(db.String(32), nullable=False, unique=True)
     MainDomain = db.Column(db.String(255), nullable=True)

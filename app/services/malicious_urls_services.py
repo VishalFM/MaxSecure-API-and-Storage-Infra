@@ -43,10 +43,12 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                 print("key > ", key)
                 if key in existing_pairs:
                     print("existing_pairs[key] > ", existing_pairs[key])
-                    existing = existing_pairs[key]
+                    existing = db.session.query(MaliciousURLs).filter_by(MD5=md5_url, VendorID=vendor_id).first() # existing_pairs[key]
                     if existing.EntryStatus != record['EntryStatus'] or existing.Score != record.get('Score', 0.0):
-                        existing.EntryStatus = record['EntryStatus']
-                        existing.Score = record.get('Score', 0.0)
+                        print("being update")
+                        existing.Score = float(record.get('Score', 0.0))
+                        print("updated")
+                        existing.EntryStatus = int(record['EntryStatus'])
                         updated_count += 1
                 else:
                     new_urls.append(MaliciousURLs(

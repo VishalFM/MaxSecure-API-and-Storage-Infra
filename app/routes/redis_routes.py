@@ -86,12 +86,10 @@ def search_malicious_url():
         domain_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
         md5_domain_url = get_md5_from_url(domain_url)
 
-        # Check malicious URL cache
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
         if cached_result:
             return handle_cached_result(cached_result, source=1)
 
-        # Check white domain cache
         cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
         if cached_result:
             try:
@@ -100,8 +98,7 @@ def search_malicious_url():
                 cache_counter = int(parts[4])
                 cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
                 current_date = datetime.utcnow().date()
-                print("cache_counter > ", cache_counter)
-                print("(current_date - cache_date).days > ",(current_date - cache_date).days)
+
                 if cache_counter < 2 and (current_date - cache_date).days < 7:
                     return handle_cached_result(cached_result, source=2)
                 last_value = int(parts[-1])  
