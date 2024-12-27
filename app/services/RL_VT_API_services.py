@@ -12,7 +12,7 @@ def check_in_RL_API(url):
     payload = {
         "rl": {
             "query": {
-                "url": re.sub(r"^https://", "http://", url),
+                "url": url,
                 "response_format": "json"
             }
         }
@@ -49,7 +49,7 @@ def check_in_VT_API(url, is_base):
     if is_base:
         encoded_url = url
     else:
-        encoded_url = base64.b64encode(re.sub(r"^https?://", "", url).encode('utf-8')).decode('utf-8').rstrip("=")
+        encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
 
     # print(" Config.VT_ENDPOINT >",  Config.VT_ENDPOINT + encoded_url)
     api_url = Config.VT_ENDPOINT + encoded_url

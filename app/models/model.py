@@ -140,3 +140,24 @@ class MaliciousURLs(db.Model):
 
     def __repr__(self):
         return f"<MaliciousURLs(ID={self.ID}, URL={self.URL}, VendorID={self.VendorID}, EntryStatus={self.EntryStatus}, Score={self.Score}, MainDomain={self.MainDomain})>"
+
+class WhiteMainDomainURL(db.Model):
+    __tablename__ = "WhiteMainDomainURL"
+
+    ID = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    URL = db.Column(db.Text, nullable=False)
+    MD5 = db.Column(db.CHAR(32), nullable=False)
+    EntryStatus = db.Column(db.Integer, nullable=False)
+    Vendor = db.Column(db.String(100), nullable=True)
+    counter = db.Column(db.Integer, default=0)
+
+    def __init__(self, URL, MD5, EntryStatus, Vendor=None, counter=0):
+        self.URL = URL
+        self.MD5 = MD5
+        self.EntryStatus = EntryStatus
+        self.Vendor = Vendor
+        self.counter = counter
+
+    def __repr__(self):
+        return f"<WhiteMainDomainURL(ID={self.ID}, URL={self.URL}, MD5={self.MD5}, EntryStatus={self.EntryStatus}, Vendor={self.Vendor}, counter={self.counter})>"
+    
