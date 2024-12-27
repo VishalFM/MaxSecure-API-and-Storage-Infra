@@ -45,10 +45,8 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
                     print("existing_pairs[key] > ", existing_pairs[key])
                     existing = db.session.query(MaliciousURLs).filter_by(MD5=md5_url, VendorID=vendor_id).first() # existing_pairs[key]
                     if existing.EntryStatus != record['EntryStatus'] or existing.Score != record.get('Score', 0.0):
-                        print("being update")
-                        existing.Score = float(record.get('Score', 0.0))
-                        print("updated")
                         existing.EntryStatus = int(record['EntryStatus'])
+                        existing.Score = float(record.get('Score', 0.0))
                         updated_count += 1
                 else:
                     new_urls.append(MaliciousURLs(
@@ -64,7 +62,7 @@ def bulk_insert_malicious_urls(urls_data, batch_size=10000):
 
             if new_urls:
                 db.session.bulk_save_objects(new_urls)
-                db.session.commit()
+            db.session.commit()
             print("here")
             redis_service.bulk_insert_cache(malicious_cache, "malicious_url")
             redis_service.bulk_insert_cache(domain_cache, "main_domain_url")

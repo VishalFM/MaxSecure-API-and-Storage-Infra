@@ -33,6 +33,9 @@ class Config:
     
     VT_ENDPOINT = os.getenv('VT_ENDPOINT', 'Not Configured')
     VT_KEY = os.getenv('VT_KEY', 'Not Configured')
+
+    RESCAN_DAYS = os.getenv('RESCAN_DAYS', 'Not Configured')
+    RESCAN_COUNTER = os.getenv('RESCAN_COUNTER', 'Not Configured')
     
     API_RATE_LIMIT = os.getenv('API_RATE_LIMIT', '100/min')
 

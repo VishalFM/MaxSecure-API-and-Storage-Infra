@@ -12,6 +12,7 @@ from app.services.redis_services import search_in_cache, search_in_malware_cache
 import threading
 from app.services.white_main_domain import insert_white_main_domain_url
 from app.utils.parse_url import extract_main_domain, get_main_domain, get_md5_from_url
+from config import Config
 
 search_bp = Blueprint('search', __name__)
 redis_service = RedisService()
@@ -98,9 +99,11 @@ def search_malicious_url():
                 cache_counter = int(parts[4])
                 cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
                 current_date = datetime.utcnow().date()
-
-                if not(cache_counter < 2 and (current_date - cache_date).days > 7):
+                RESCAN_COUNTER = Config.RESCAN_COUNTER
+                RESCAN_DAYS = Config.RESCAN_DAYS
+                if not(cache_counter < RESCAN_COUNTER and (current_date - cache_date).days > RESCAN_DAYS):
                     return handle_cached_result(cached_result, source=2)
+                
                 last_value = int(parts[-1])  
                 parts[-1] = str(last_value + 1)  
                 parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
