@@ -103,6 +103,7 @@ def search_malicious_url():
                     return handle_cached_result(cached_result, source=2)
                 last_value = int(parts[-1])  
                 parts[-1] = str(last_value + 1)  
+                parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
                 updated_cache_value = '|'.join(parts)
                 redis_service.update_cache(md5_domain_url, updated_cache_value, "white_main_domain_url")
             except Exception as e:
