@@ -99,7 +99,7 @@ def search_malicious_url():
                 cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
                 current_date = datetime.utcnow().date()
 
-                if cache_counter < 2 and (current_date - cache_date).days < 7:
+                if not(cache_counter < 2 and (current_date - cache_date).days > 7):
                     return handle_cached_result(cached_result, source=2)
                 last_value = int(parts[-1])  
                 parts[-1] = str(last_value + 1)  
@@ -117,6 +117,13 @@ def search_malicious_url():
 
         if classification in ['known'] and rl_score == 0:
             white_domain_url, md5_white_domain_url = cache_insert_white_domain(url, rl_score, "RL")
+            insert_white_main_domain_url({
+                'URL': white_domain_url,
+                'MD5': md5_white_domain_url,
+                'EntryStatus': 0,
+                'Vendor': "RL",
+                'counter': 0
+            })
             return jsonify({"status": 0, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
 
         # VT API check
