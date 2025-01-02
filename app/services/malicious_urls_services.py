@@ -156,7 +156,8 @@ def insert_malicious_url(record):
         # Normalize and prepare data
         vendor_name = record['VendorName'].strip()
         normalized_url = record['URL'].strip().lower()
-        domain = urlparse(normalized_url).netloc
+        parsed_url = urlparse(normalized_url) 
+        domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
         md5_url = get_md5_from_url(normalized_url)
         md5_domain = get_md5_from_url(domain)
         cache_value = f"{record['EntryStatus']}|{record.get('Score', 0.0)}|{vendor_name}"
