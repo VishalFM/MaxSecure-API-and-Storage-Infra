@@ -7,6 +7,7 @@ from app.services.file_type_services import validate_and_insert_file_types, get_
 from app.services.source_services import validate_and_insert_sources, get_source_ids
 from app.services.spyware_category_services import get_or_create_spyware_category
 from app.services.spyware_name_services import get_or_create_spyware_name
+from sqlalchemy.exc import IntegrityError
 
 redis_service = RedisService()
 
@@ -63,6 +64,7 @@ def bulk_insert_signatures(signatures_data):
         source_ids = get_source_ids([src["Name"] for src in sources_to_validate])
         signature_map_white = {}
         signature_map_malware = {}
+        response_data = [] 
 
         for record in valid_records:
             category_name, spyware_name = record["SpywareName"].split(".", 1)
@@ -78,51 +80,78 @@ def bulk_insert_signatures(signatures_data):
             elif record["EntryStatus"] == 1:  # Malware Cache
                 signature_map_malware[record['Signature']] = f"{record['SpywareName']}|{record['SHA256']}|{record['Source']}"
 
-        insert_query = db.text("""
-            INSERT INTO "Signature" ("Signature", "EntryStatus", "SpywareNameID", "SourceID", "FileTypeID", "InsertDate", "UpdateDate", "HitsCount", "SHA256", "OS")
-            VALUES (:Signature, :EntryStatus, :SpywareNameID, :SourceID, :FileTypeID, :InsertDate, :UpdateDate, :HitsCount, :SHA256, :OS)  
-            ON CONFLICT("Signature") 
-            DO UPDATE SET
-                "EntryStatus" = EXCLUDED."EntryStatus",
-                "SpywareNameID" = EXCLUDED."SpywareNameID",
-                "SourceID" = EXCLUDED."SourceID",
-                "FileTypeID" = EXCLUDED."FileTypeID",
-                "UpdateDate" = EXCLUDED."UpdateDate",
-                "HitsCount" = "Signature"."HitsCount" + EXCLUDED."HitsCount",
-                "SHA256" = EXCLUDED."SHA256",  
-                "OS" = EXCLUDED."OS";  
-        """)
-
         current_timestamp = datetime.now()
-        batch_size = 10000
         inserted_count = 0
+        updated_count = 0
 
-        for i in range(0, len(valid_records), batch_size):
-            batch = valid_records[i:i + batch_size]
-            batch_data = [{
-                "Signature": record['Signature'],
-                "EntryStatus": record['EntryStatus'],
-                "SpywareNameID": record['SpywareNameID'],
-                "SourceID": record['SourceID'],
-                "FileTypeID": record['FileTypeID'],
-                "InsertDate": current_timestamp,
-                "UpdateDate": current_timestamp,
-                "HitsCount": record.get('HitsCount', 0),
-                "SHA256": record["SHA256"],  
-                "OS": record["OS"]  
-            } for record in batch]
-            
-            db.session.execute(insert_query, batch_data)
-            db.session.flush()
-            redis_service.save_to_redis(signature_map_white, signature_map_malware)
-            inserted_count += len(batch)
+        for record in valid_records:
+            signature = record['Signature']
+            entry_status = record['EntryStatus']
+            spyware_name_id = record['SpywareNameID']
+            source_id = record['SourceID']
+            file_type_id = record['FileTypeID']
+            hits_count = record.get('HitsCount', 0)
+            sha256 = record["SHA256"]
+            os = record["OS"]
+
+            # Try to find an existing Signature record by the Signature field
+            existing_signature = db.session.query(Signature).filter_by(Signature=signature).first()
+
+            if existing_signature:
+                # If the record exists, update the necessary fields
+                existing_signature.EntryStatus = entry_status
+                existing_signature.SpywareNameID = spyware_name_id
+                existing_signature.SourceID = source_id
+                existing_signature.FileTypeID = file_type_id
+                existing_signature.UpdateDate = current_timestamp
+                existing_signature.HitsCount += hits_count  # Increment HitsCount
+                existing_signature.SHA256 = sha256
+                existing_signature.OS = os
+
+                updated_count += 1
+                response_data.append({
+                    "Signature": signature,
+                    "Status": "updated",
+                    "Message": f"Signature '{signature}' was updated."
+                })
+            else:
+                # If the record does not exist, create a new one (no need to specify InsertDate or UpdateDate)
+                new_signature = Signature(
+                    Signature=signature,
+                    EntryStatus=entry_status,
+                    SpywareNameID=spyware_name_id,
+                    SourceID=source_id,
+                    FileTypeID=file_type_id,
+                    HitsCount=hits_count,
+                    SHA256=sha256,
+                    OS=os
+                )
+                db.session.add(new_signature)
+
+                inserted_count += 1
+                response_data.append({
+                    "Signature": signature,
+                    "Status": "inserted",
+                    "Message": f"Signature '{signature}' was inserted."
+                })
 
         db.session.commit()
-        return {"message": f"{inserted_count} signatures successfully processed.", "inserted_count": inserted_count}, True
 
+        redis_service.save_to_redis(signature_map_white, signature_map_malware)
+
+        return {
+            "message": f"{inserted_count} signatures processed. {updated_count} updated.",
+            "inserted_count": inserted_count,
+            "updated_count": updated_count,
+            "details": response_data
+        }, True
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return {"error": f"Integrity error occurred: {str(e)}"}, False
     except Exception as e:
         db.session.rollback()
-        return {"error": f"An error occurred: {str(e)}", "inserted_count": 0}, False
+        return {"error": f"An error occurred: {str(e)}"}, False
 
 def delete_signatures(signatures):
     try:
@@ -191,48 +220,53 @@ def update_signature(signature, signature_data):
         db.session.rollback()
         return {"error": f"An error occurred while updating the signature: {str(e)}"}, False
 
-def search_signatures_service(signature=None, start_date=None, end_date=None, os=None, entry_status=None):
+def search_signatures_service(signature=None):
     try:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
-        end_date = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
+        if not signature or not isinstance(signature, list):
+            return {"status": "error", "message": "The 'signature' parameter is required and must be a list"}, 400
 
-        query = db.session.query(Signature)
+        query = db.session.query(Signature.Signature, Signature.EntryStatus, SpywareName.Name).join(SpywareName).filter(
+            Signature.Signature.in_(signature)
+        )
 
-        if signature:
-            query = query.filter(Signature.Signature == signature)
-        
-        if start_date and end_date:
-            query = query.filter(Signature.InsertDate >= start_date, Signature.InsertDate <= end_date)
-        elif start_date:
-            query = query.filter(Signature.InsertDate >= start_date)
-        elif end_date:
-            query = query.filter(Signature.InsertDate <= end_date)
+        results = query.all()
 
-        if os:
-            query = query.filter(Signature.OS == os)
+        found_signatures = {result.Signature for result in results}
 
-        if entry_status:
-            query = query.filter(Signature.EntryStatus == entry_status)
+        missing_signatures = list(set(signature) - found_signatures)
 
-        signatures = query.all()
+        # Formatted results for found signatures
+        formatted_results = [
+            {
+                "Signature": result.Signature,
+                "EntryStatus": result.EntryStatus,
+                "SpywareName": result.Name if result.EntryStatus != 0 else None
+            }
+            for result in results
+        ]
 
-        if not signatures:
-            return {"status": "success", "message": "No signatures found"}, 200
+        # Add missing signatures with EntryStatus -1 and SpywareName None
+        missing_results = [
+            {
+                "Signature": sig,
+                "EntryStatus": -1,
+                "SpywareName": None
+            }
+            for sig in missing_signatures
+        ]
 
-        results = [{
-            "Signature": sig.Signature,
-            "EntryStatus": sig.EntryStatus,
-            "SpywareNameID": sig.SpywareNameID,
-            "SourceID": sig.SourceID,
-            "FileTypeID": sig.FileTypeID,
-            "InsertDate": sig.InsertDate,
-            "UpdateDate": sig.UpdateDate,
-            "HitsCount": sig.HitsCount,
-            "SHA256": sig.SHA256,
-            "OS": sig.OS
-        } for sig in signatures]
+        # Merging both found and missing results
+        all_results = formatted_results + missing_results
 
-        return {"status": "success", "data": results}, 200
+        response = {
+            "status": "success",
+            "data": all_results
+        }
+
+        if not all_results:
+            response["message"] = "No signatures found"
+
+        return response, 200
 
     except Exception as e:
         return {"status": "error", "message": f"An error occurred: {str(e)}"}, 500
