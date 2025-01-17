@@ -17,34 +17,59 @@ from config import Config
 search_bp = Blueprint('search', __name__)
 redis_service = RedisService()
 
-@search_bp.route('/search/<md5_signature>', methods=['GET'])
-def search(md5_signature):
+@search_bp.route('/search', methods=['POST'])
+def search_batch():
     try:
-        md5_signature = base64.b64decode(md5_signature).decode('utf-8')
+        # Validate input
+        request_data = request.get_json()
+        signatures = request_data.get('md5_signatures')
+        if not signatures or not isinstance(signatures, list):
+            return jsonify({"status": "error", "message": "The 'md5_signatures' parameter is required and must be a list"}), 400
+
+        # Query Redis for batch processing
+        results = []
+        found_signatures = set()
+
+        for md5_signature in signatures:
+            white_result = search_in_cache(md5_signature, {}, "white")
+            malware_result = search_in_cache(md5_signature, {}, "malware")
+
+            if white_result and white_result.get("status") == 0:
+                results.append({
+                    "Signature": md5_signature,
+                    "EntryStatus": 0,
+                    "SpywareName": white_result.get("Spyware Name")
+                })
+                found_signatures.add(md5_signature)
+            elif malware_result and malware_result.get("status") == 1:
+                results.append({
+                    "Signature": md5_signature,
+                    "EntryStatus": 1,
+                    "SpywareName": malware_result.get("Spyware Name")
+                })
+                found_signatures.add(md5_signature)
+
+        # Identify missing signatures
+        missing_signatures = list(set(signatures) - found_signatures)
+        for sig in missing_signatures:
+            results.append({
+                "Signature": sig,
+                "EntryStatus": -1,
+                "SpywareName": None
+            })
+
+        response = {
+            "status": "success",
+            "data": results
+        }
+
+        if not results:
+            response["message"] = "No signatures found"
+
+        return jsonify(response), 200
+
     except Exception as e:
-        return jsonify({"status": "error", "message": "Invalid Base64 encoding", "error": str(e)}), 400
-
-    result_dict = {"found_in_white": False, "found_in_malware": False, "status": 2}
-    
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        future_white = executor.submit(search_in_cache, md5_signature, result_dict, "white")
-        future_malware = executor.submit(search_in_cache, md5_signature, result_dict, "malware")
-        
-        white_result = future_white.result()
-        malware_result = future_malware.result()
-        if white_result and white_result.get("status") == 0:
-            result_dict["found_in_white"] = True
-            result_dict["cache_value"] = white_result  # Add cache value for response
-        if malware_result and malware_result.get("status") == 1:
-            result_dict["found_in_malware"] = True
-            result_dict["cache_value"] = malware_result  # Add cache value for response
-
-    if result_dict.get("found_in_white", False):
-        return jsonify({"data": result_dict["cache_value"]}), 200
-    elif result_dict.get("found_in_malware", False):
-        return jsonify({"data": result_dict["cache_value"]}), 200
-    else:
-        return jsonify({"status": "success", "message": "Not found in either cache"}), 200
+        return jsonify({"status": "error", "message": f"An error occurred: {str(e)}"}), 500
 
 def decode_url(encoded_url, is_base):
     try:
