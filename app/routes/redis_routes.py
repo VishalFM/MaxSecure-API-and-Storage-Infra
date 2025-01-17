@@ -38,7 +38,7 @@ def search_batch():
                 results.append({
                     "Signature": md5_signature,
                     "EntryStatus": 0,
-                    "SpywareName": white_result.get("Spyware Name")
+                    "SpywareName": None
                 })
                 found_signatures.add(md5_signature)
             elif malware_result and malware_result.get("status") == 1:
