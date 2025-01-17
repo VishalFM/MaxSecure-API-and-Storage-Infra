@@ -208,11 +208,10 @@ def search_in_cache(md5_signature, result_dict, cache_type):
         redis_cache = redis_service.redis_malware
         key_exists = redis_cache.exists(redis_key)
         if key_exists:
-            cache_value = redis_cache.hget(redis_key, "SpywareNameAndCategory")  # Assuming it has a field "SpywareNameAndCategory"
-            cache_value_parts = cache_value.split('|')
+            cache_value = redis_cache.get(redis_key).split('|')  # Assuming it's stored in "SpywareName|VendorName|SourceName"
             return {
-                "Spyware Name": cache_value_parts[0],
-                "Category": cache_value_parts[1],
+                "Spyware Name": cache_value[0],
+                "Category": cache_value[2],
                 "status": 1  # status 1 indicates it was found in malware cache
             }
         else:
