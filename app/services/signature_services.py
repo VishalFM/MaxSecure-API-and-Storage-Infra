@@ -220,53 +220,48 @@ def update_signature(signature, signature_data):
         db.session.rollback()
         return {"error": f"An error occurred while updating the signature: {str(e)}"}, False
 
-def search_signatures_service(signature=None):
+def search_signatures_service(signature=None, start_date=None, end_date=None, os=None, entry_status=None):
     try:
-        if not signature or not isinstance(signature, list):
-            return {"status": "error", "message": "The 'signature' parameter is required and must be a list"}, 400
+        start_date = datetime.strptime(start_date, '%Y-%m-%d') if start_date else None
+        end_date = datetime.strptime(end_date, '%Y-%m-%d') if end_date else None
 
-        query = db.session.query(Signature.Signature, Signature.EntryStatus, SpywareName.Name).join(SpywareName).filter(
-            Signature.Signature.in_(signature)
-        )
+        query = db.session.query(Signature)
 
-        results = query.all()
+        if signature:
+            query = query.filter(Signature.Signature == signature)
+        
+        if start_date and end_date:
+            query = query.filter(Signature.InsertDate >= start_date, Signature.InsertDate <= end_date)
+        elif start_date:
+            query = query.filter(Signature.InsertDate >= start_date)
+        elif end_date:
+            query = query.filter(Signature.InsertDate <= end_date)
 
-        found_signatures = {result.Signature for result in results}
+        if os:
+            query = query.filter(Signature.OS == os)
 
-        missing_signatures = list(set(signature) - found_signatures)
+        if entry_status:
+            query = query.filter(Signature.EntryStatus == entry_status)
 
-        # Formatted results for found signatures
-        formatted_results = [
-            {
-                "Signature": result.Signature,
-                "EntryStatus": result.EntryStatus,
-                "SpywareName": result.Name if result.EntryStatus != 0 else None
-            }
-            for result in results
-        ]
+        signatures = query.all()
 
-        # Add missing signatures with EntryStatus -1 and SpywareName None
-        missing_results = [
-            {
-                "Signature": sig,
-                "EntryStatus": -1,
-                "SpywareName": None
-            }
-            for sig in missing_signatures
-        ]
+        if not signatures:
+            return {"status": "success", "message": "No signatures found"}, 200
 
-        # Merging both found and missing results
-        all_results = formatted_results + missing_results
+        results = [{
+            "Signature": sig.Signature,
+            "EntryStatus": sig.EntryStatus,
+            "SpywareNameID": sig.SpywareNameID,
+            "SourceID": sig.SourceID,
+            "FileTypeID": sig.FileTypeID,
+            "InsertDate": sig.InsertDate,
+            "UpdateDate": sig.UpdateDate,
+            "HitsCount": sig.HitsCount,
+            "SHA256": sig.SHA256,
+            "OS": sig.OS
+        } for sig in signatures]
 
-        response = {
-            "status": "success",
-            "data": all_results
-        }
-
-        if not all_results:
-            response["message"] = "No signatures found"
-
-        return response, 200
-
+        return {"status": "success", "data": results}, 200
+    
     except Exception as e:
         return {"status": "error", "message": f"An error occurred: {str(e)}"}, 500
