@@ -114,7 +114,10 @@ def search_malicious_url():
 
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
         if cached_result:
-            return handle_cached_result(cached_result, source=1)
+            try :
+                return handle_cached_result(cached_result, source=1)
+            except Exception as e:
+                print("Error - ", e, "\n issue in redis value for key - ", md5_hash)
 
         cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
         if cached_result:
