@@ -18,11 +18,11 @@ def check_in_RL_API(url):
         }
     }
 
-    print("payload ---> ", payload)
-    print("api_url ---> ", api_url)
+    ##print("payload ---> ", payload)
+    ##print("api_url ---> ", api_url)
 
     try:
-        response = requests.post(api_url, json=payload, auth=(username, password))
+        response = requests.post(api_url, json=payload, auth=(username, password), timeout=0.8)
         response.raise_for_status()
         data = response.json()
 
@@ -32,9 +32,15 @@ def check_in_RL_API(url):
         suspicious_count = statistics.get("suspicious", 0)
         classification = data.get("rl", {}).get("classification", "")
         base64_encoded_url = data.get("rl", {}).get("base64", "")
-        
+
         # print("base64_encoded_url > ", base64_encoded_url)
         return malicious_count + suspicious_count, base64_encoded_url, classification
+    except:
+        return -1, "", ""
+    '''
+    except requests.exceptions.Timeout as e:
+        print(f"Request timed out RL: {e}")
+        return -2, "", ""  # Return empty result in case of timeout
 
     except requests.exceptions.RequestException as e:
         print(f"An error occurred while making the API call: {e}")
@@ -42,7 +48,7 @@ def check_in_RL_API(url):
     except json.JSONDecodeError:
         print("Failed to parse the API response as JSON.")
         return 0, "", ""
-
+    '''
 def check_in_VT_API(url, is_base):
     # print("asdasdasd")
     # print("url > ", url)
@@ -61,7 +67,7 @@ def check_in_VT_API(url, is_base):
     }
 
     try:
-        response = requests.get(api_url, headers=headers)
+        response = requests.get(api_url, headers=headers,timeout=1.2)
         response.raise_for_status()
         data = response.json()
 
@@ -72,10 +78,16 @@ def check_in_VT_API(url, is_base):
         # print("malicious_count > ", malicious_count )
         # print("suspicious_count > ", suspicious_count )
         return malicious_count + suspicious_count
-
+    except:
+        return -1
+    '''
+    except requests.exceptions.Timeout as e:
+        print(f"Request timed out VT: {e}")
+        return -1
     except requests.exceptions.RequestException as e:
         print(f"Request failed: {e}")
         return -1
     except KeyError as e:
         print(f"Unexpected response structure: {e}")
         return -1
+    '''
