@@ -14,9 +14,11 @@ from app.services.white_main_domain import insert_white_main_domain_url
 from app.utils.parse_url import extract_main_domain, get_main_domain, get_md5_from_url
 from config import Config
 from collections import OrderedDict
+from fastapi import FastAPI
 
 search_bp = Blueprint('search', __name__)
 redis_service = RedisService()
+app = FastAPI()
 
 @search_bp.route('/search', methods=['POST'])
 def search_batch():
@@ -189,6 +191,135 @@ def search_malicious_url():
 
                 last_value = int(parts[-1])  
                 parts[-1] = str(last_value + 1)  
+                parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
+                updated_cache_value = '|'.join(parts)
+                redis_service.update_cache(md5_domain_url, updated_cache_value, "white_main_domain_url")
+            except Exception as e:
+                total_time = time.time() - start_time
+                print(f"Total Execution Time: {total_time:.4f} seconds")
+                return jsonify({"status": 0, "error": f"Error processing cached date: {str(e)}"}), 500
+
+        # RL API check
+        rl_start_time = time.time()
+        rl_score, _, classification = check_in_RL_API(url)
+        rl_time_taken = time.time() - rl_start_time
+        print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
+
+        if rl_score >= 4:
+            insert_malicious_url({"VendorName": "RL", "URL": url, "EntryStatus": 1, "Score": rl_score})
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return jsonify({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
+
+        if classification in ['known'] and rl_score == 0:
+            white_domain_url, md5_white_domain_url = cache_insert_white_domain(url, rl_score, "RL")
+            insert_white_main_domain_url({
+                'URL': white_domain_url,
+                'MD5': md5_white_domain_url,
+                'EntryStatus': 0,
+                'Vendor': "RL",
+                'counter': 0
+            })
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return jsonify({"status": 0, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
+
+        # VT API check
+        vt_start_time = time.time()
+        vt_score = check_in_VT_API(url, False)
+        vt_time_taken = time.time() - vt_start_time
+        print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
+
+        if vt_score >= 4:
+            insert_malicious_url({"VendorName": "VT", "URL": url, "EntryStatus": 1, "Score": vt_score})
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return jsonify({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}), 200
+
+        if vt_score != -1:
+            white_domain_url, md5_white_domain_url = cache_insert_white_domain(url, vt_score, "VT")
+            insert_white_main_domain_url({
+                'URL': white_domain_url,
+                'MD5': md5_white_domain_url,
+                'EntryStatus': 0,
+                'Vendor': "VT",
+                'counter': 0
+            })
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return jsonify({"status": 0, "source": 4, "Vendor": "VT", "Score": vt_score}), 200
+
+        total_time = time.time() - start_time
+        print(f"Total Execution Time: {total_time:.4f} seconds")
+        return jsonify({"status": -1}), 200
+
+    except Exception as e:
+        total_time = time.time() - start_time
+        print(f"Total Execution Time: {total_time:.4f} seconds")
+        return jsonify({"status": 0, "error": f"Internal server error: {str(e)}"}), 500
+
+
+@app.get("/fastSearchMaliciousUrl")
+def fast_searchMaliciousUrl():
+    start_time = time.time()  # Start time log
+    print(f"API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    try:
+        encoded_url = request.args.get('url')
+        is_base = request.args.get('is_base', default='true', type=str).lower() == 'true'
+
+        if not encoded_url:
+            total_time = time.time() - start_time  # Total execution time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return jsonify({"status": 0, "error": "URL parameter is required"}), 400
+
+        try:
+            url = decode_url(encoded_url, is_base)
+        except ValueError as e:
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return jsonify({"status": 0, "error": str(e)}), 400
+
+        md5_hash = get_md5_from_url(url)
+        parsed_url = urlparse(url)
+        domain_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
+        md5_domain_url = get_md5_from_url(domain_url)
+
+        # Check Redis Cache
+        redis_start_time = time.time()
+        cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
+        redis_time_taken = time.time() - redis_start_time
+        print(f"Redis Cache Search Execution Time: {redis_time_taken:.4f} seconds")
+
+        if cached_result:
+            try:
+                total_time = time.time() - start_time
+                print(f"Total Execution Time: {total_time:.4f} seconds")
+                return handle_cached_result(cached_result, source=1)
+            except Exception as e:
+                print(f"Error - {e} \nIssue in Redis value for key - {md5_hash}")
+
+        redis_start_time = time.time()
+        cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
+        redis_time_taken = time.time() - redis_start_time
+        print(f"Redis White Domain Cache Search Execution Time: {redis_time_taken:.4f} seconds")
+
+        if cached_result:
+            try:
+                parts = cached_result.split('|')
+                cache_date_str = parts[3]
+                cache_counter = int(parts[4])
+                cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
+                current_date = datetime.utcnow().date()
+                RESCAN_COUNTER = int(Config.RESCAN_COUNTER)
+                RESCAN_DAYS = int(Config.RESCAN_DAYS)
+                if not (cache_counter < RESCAN_COUNTER and (current_date - cache_date).days > RESCAN_DAYS):
+                    total_time = time.time() - start_time
+                    print(f"Total Execution Time: {total_time:.4f} seconds")
+                    return handle_cached_result(cached_result, source=2)
+
+                last_value = int(parts[-1])
+                parts[-1] = str(last_value + 1)
                 parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
                 updated_cache_value = '|'.join(parts)
                 redis_service.update_cache(md5_domain_url, updated_cache_value, "white_main_domain_url")
