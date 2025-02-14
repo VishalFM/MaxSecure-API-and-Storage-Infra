@@ -188,15 +188,15 @@ def insert_malicious_url(record):
 
         # Commit the database transaction
         db.session.commit()
-        print("here")
+        # print("here")
 
-        print("inserted into pg now inserting into redis")
+        # print("inserted into pg now inserting into redis")
         # Insert into Redis
         redis_service.bulk_insert_cache([(md5_url, cache_value)], "malicious_url")
-        print(" inserted into malicisous uel redis")
+        # print(" inserted into malicisous uel redis")
 
         redis_service.bulk_insert_cache([(md5_domain, cache_value)], "main_domain_url")
-        print(" inserted into main donmain url redis")
+        # print(" inserted into main donmain url redis")
 
         return {"message": "Record inserted/updated successfully"}, True
     except Exception as e:
