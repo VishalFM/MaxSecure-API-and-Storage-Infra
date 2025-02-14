@@ -13,6 +13,7 @@ import threading
 from app.services.white_main_domain import insert_white_main_domain_url
 from app.utils.parse_url import extract_main_domain, get_main_domain, get_md5_from_url
 from config import Config
+from collections import OrderedDict
 
 search_bp = Blueprint('search', __name__)
 redis_service = RedisService()
@@ -20,56 +21,90 @@ redis_service = RedisService()
 @search_bp.route('/search', methods=['POST'])
 def search_batch():
     try:
-        # Validate input
+         # Extract Authorization header
+        auth_header = request.headers.get('Authorization')
+        
+        if auth_header is None:
+            return jsonify({"message": "unauthorized"}), 400
+        
+        # Check if the header is in the format "Bearer <token>"
+        if not auth_header.startswith('Bearer '):
+            return jsonify({"message": "unauthorized"}), 400
+        
+        # Extract the token part (after "Bearer ")
+        token = auth_header.split(' ')[1]
+
         request_data = request.get_json()
-        signatures = request_data.get('md5_signatures')
-        if not signatures or not isinstance(signatures, list):
-            return jsonify({"status": "error", "message": "The 'md5_signatures' parameter is required and must be a list"}), 400
+
+        # Ensure that the input is a list of dictionaries
+        if not request_data or not isinstance(request_data, list):
+            return jsonify({"status": "error", "message": "The request body must be a list of dictionaries"}), 400
 
         # Query Redis for batch processing
         results = []
-        found_signatures = set()
 
-        for md5_signature in signatures:
+        for signature in request_data:
+            md5_signature = signature.get('md5')
+            file_signature = signature.get('file_signature')
+            file_type = signature.get('file_type')
+
+            # Validate required fields
+            if not md5_signature or not file_signature or not file_type:
+                return jsonify({"status": "error", "message": "Each item must include 'md5', 'file_signature', and 'file_type'"}), 400
+
+            # Query Redis for white and malware results
             white_result = search_in_cache(md5_signature, {}, "white")
+
+            # Current timestamp for the "date" field
+            current_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            # If the signature is found in the "white" cache
+            if white_result and white_result.get("status") == 0:
+                results.append(OrderedDict({
+                "md5": md5_signature,
+                "date": current_date,
+                "file_signature": file_signature,
+                "file_type": file_type,
+                "is_cache": True,
+                "malware_status": 0,
+                "threat_name": "WHITE"
+                }))
+                response = results
+                return response
+            
             malware_result = search_in_cache(md5_signature, {}, "malware")
 
-            if white_result and white_result.get("status") == 0:
-                results.append({
-                    "Signature": md5_signature,
-                    "EntryStatus": 0,
-                    "SpywareName": None
-                })
-                found_signatures.add(md5_signature)
-            elif malware_result and malware_result.get("status") == 1:
-                results.append({
-                    "Signature": md5_signature,
-                    "EntryStatus": 1,
-                    "SpywareName": malware_result.get("Spyware Name")
-                })
-                found_signatures.add(md5_signature)
+            # If the signature is found in the "malware" cache
+            if malware_result and malware_result.get("status") == 1:
+                results.append(OrderedDict({
+                "md5": md5_signature,
+                "date": current_date,
+                "file_signature": file_signature,
+                "file_type": file_type,
+                "is_cache": True,
+                "malware_status": 1,
+                "threat_name": malware_result.get("Spyware Name", "")
+                }))
+                response = results
+                return response
 
-        # Identify missing signatures
-        missing_signatures = list(set(signatures) - found_signatures)
-        for sig in missing_signatures:
-            results.append({
-                "Signature": sig,
-                "EntryStatus": -1,
-                "SpywareName": None
-            })
+            else:
+                results.append(OrderedDict({
+                "md5": md5_signature,
+                "date": current_date,
+                "file_signature": file_signature,
+                "file_type": file_type,
+                "is_cache": False,
+                "malware_status": 2,
+                "threat_name": ""
+                }))
+                response = results
+                return response
 
-        response = {
-            "status": "success",
-            "data": results
-        }
-
-        if not results:
-            response["message"] = "No signatures found"
-
-        return jsonify(response), 200
+        return jsonify({"message": "No Signature Found"}), 400
 
     except Exception as e:
-        return jsonify({"status": "error", "message": f"An error occurred: {str(e)}"}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 def decode_url(encoded_url, is_base):
     try:
