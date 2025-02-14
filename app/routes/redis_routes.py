@@ -95,6 +95,9 @@ def handle_cached_result(cached_result, source):
 
 @search_bp.route('/searchMaliciousUrl', methods=['GET'])
 def search_malicious_url():
+    start_time = time.time()  # Start time log
+    print(f"API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+
     try:
         encoded_url = request.args.get('url')
         is_base = request.args.get('is_base', default='true', type=str).lower() == 'true'
@@ -112,14 +115,23 @@ def search_malicious_url():
         domain_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
         md5_domain_url = get_md5_from_url(domain_url)
 
+        # Check Redis Cache
+        redis_start_time = time.time()
         cached_result = redis_service.search_in_malicious_url_cache(md5_hash)
+        redis_time_taken = time.time() - redis_start_time
+        print(f"Redis Cache Search Execution Time: {redis_time_taken:.4f} seconds")
+
         if cached_result:
-            try :
+            try:
                 return handle_cached_result(cached_result, source=1)
             except Exception as e:
-                print("Error - ", e, "\n issue in redis value for key - ", md5_hash)
+                print(f"Error - {e} \nIssue in Redis value for key - {md5_hash}")
 
+        redis_start_time = time.time()
         cached_result = redis_service.search_in_White_main_domain_url_cache(md5_domain_url)
+        redis_time_taken = time.time() - redis_start_time
+        print(f"Redis White Domain Cache Search Execution Time: {redis_time_taken:.4f} seconds")
+
         if cached_result:
             try:
                 parts = cached_result.split('|')
@@ -129,9 +141,9 @@ def search_malicious_url():
                 current_date = datetime.utcnow().date()
                 RESCAN_COUNTER = int(Config.RESCAN_COUNTER)
                 RESCAN_DAYS = int(Config.RESCAN_DAYS)
-                if not(cache_counter < RESCAN_COUNTER and (current_date - cache_date).days > RESCAN_DAYS):
+                if not (cache_counter < RESCAN_COUNTER and (current_date - cache_date).days > RESCAN_DAYS):
                     return handle_cached_result(cached_result, source=2)
-                
+
                 last_value = int(parts[-1])  
                 parts[-1] = str(last_value + 1)  
                 parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
@@ -141,7 +153,10 @@ def search_malicious_url():
                 return jsonify({"status": 0, "error": f"Error processing cached date: {str(e)}"}), 500
 
         # RL API check
+        rl_start_time = time.time()
         rl_score, _, classification = check_in_RL_API(url)
+        rl_time_taken = time.time() - rl_start_time
+        print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
 
         if rl_score >= 4:
             insert_malicious_url({"VendorName": "RL", "URL": url, "EntryStatus": 1, "Score": rl_score})
@@ -159,7 +174,10 @@ def search_malicious_url():
             return jsonify({"status": 0, "source": 3, "Vendor": "RL", "Score": rl_score}), 200
 
         # VT API check
+        vt_start_time = time.time()
         vt_score = check_in_VT_API(url, False)
+        vt_time_taken = time.time() - vt_start_time
+        print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
 
         if vt_score >= 4:
             insert_malicious_url({"VendorName": "VT", "URL": url, "EntryStatus": 1, "Score": vt_score})
@@ -175,6 +193,9 @@ def search_malicious_url():
                 'counter': 0
             })
             return jsonify({"status": 0, "source": 4, "Vendor": "VT", "Score": vt_score}), 200
+
+        total_time = time.time() - start_time  # Total execution time
+        print(f"Total Execution Time: {total_time:.4f} seconds")
 
         return jsonify({"status": -1}), 200
 
