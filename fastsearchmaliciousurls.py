@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse
 from urllib.parse import urlparse
 from datetime import datetime
 import time
-from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from urllib.parse import urlparse
 import tldextract
@@ -19,7 +18,7 @@ import redis.asyncio as redis
 app = FastAPI()
 
 # Create Redis connection pool
-redis_pool = Redis(
+redis_pool = redis.ConnectionPool(
     host="localhost",  # Update this with your Redis host
     port=6379,         # Default Redis port
     db=2,              # Redis database index
@@ -29,7 +28,7 @@ redis_pool = Redis(
 )
 redis_client_malicious = redis.Redis(connection_pool=redis_pool)
 
-redis_pool_white = Redis(
+redis_pool_white = redis.ConnectionPool(
     host="localhost",  # Update this with your Redis host
     port=6379,         # Default Redis port
     db=4,              # Redis database index
