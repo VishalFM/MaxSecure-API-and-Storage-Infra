@@ -9,6 +9,7 @@ import hashlib
 import requests
 import base64
 import binascii
+import re
 import traceback
 import redis.asyncio as redis
 from urllib.parse import urlparse, urlunparse
@@ -63,16 +64,23 @@ async def handle_cached_result(cached_result, source):
 
 
 def decode_url(encoded_url, is_base):
-    print(encoded_url)
-    print(is_base)
+    # Check if the input URL is Base64 encoded (a common check is whether it matches the Base64 pattern)
+    def is_base64(s):
+        base64_pattern = r'^[A-Za-z0-9+/=]+$'  # Base64 characters pattern
+        return bool(re.match(base64_pattern, s))  # Check if it contains only base64-encoded characters
+
     if is_base:
         try:
-            # Fix padding if necessary
-            missing_padding = len(encoded_url) % 4
-            if missing_padding:
-                encoded_url += '=' * (4 - missing_padding)
+            # Ensure the string matches Base64 format before decoding
+            if is_base64(encoded_url):
+                # Fix padding if necessary
+                missing_padding = len(encoded_url) % 4
+                if missing_padding:
+                    encoded_url += '=' * (4 - missing_padding)
 
-            return base64.b64decode(encoded_url).decode('utf-8')
+                return base64.b64decode(encoded_url).decode('utf-8')
+            else:
+                raise ValueError("The provided URL is not a valid Base64 string")
         except (binascii.Error, ValueError) as e:
             raise ValueError("Invalid base64 encoding") from e
     else:
