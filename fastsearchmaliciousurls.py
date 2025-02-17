@@ -21,7 +21,7 @@ redis_pool = redis.ConnectionPool(
     db=2,  # Redis database index
     password="Maxsecureredis#$2024",
     decode_responses=True,  # Ensure string decoding
-    max_connections=20  # Connection pool size
+    max_connections=200  # Connection pool size
 )
 redis_client_malicious = redis.Redis(connection_pool=redis_pool)
 
@@ -31,7 +31,7 @@ redis_pool_white = redis.ConnectionPool(
     db=4,  # Redis database index
     password="Maxsecureredis#$2024",
     decode_responses=True,  # Ensure string decoding
-    max_connections=20  # Connection pool size
+    max_connections=200  # Connection pool size
 )
 redis_client_white = redis.Redis(connection_pool=redis_pool_white)
 
