@@ -67,27 +67,25 @@ def decode_url(encoded_url, is_base):
     print(encoded_url)
     print(is_base)
 
-    # Check if the input URL is Base64 encoded (a common check is whether it matches the Base64 pattern)
-    def is_base64(s):
-        base64_pattern = r'^[A-Za-z0-9+/=]+$'  # Base64 characters pattern
-        return bool(re.match(base64_pattern, s))  # Check if it contains only base64-encoded characters
-
     if is_base:
-        try:
-            # Ensure the string matches Base64 format before decoding
-            if is_base64(encoded_url):
+        # Validate if the URL contains Base64-like structure
+        if re.match(r'^[A-Za-z0-9+/=]+$', encoded_url):  # Match valid Base64 characters
+            try:
                 # Fix padding if necessary
                 missing_padding = len(encoded_url) % 4
                 if missing_padding:
                     encoded_url += '=' * (4 - missing_padding)
 
+                # Attempt Base64 decoding
                 return base64.b64decode(encoded_url).decode('utf-8')
-            else:
-                raise ValueError("The provided URL is not a valid Base64 string")
-        except (binascii.Error, ValueError) as e:
-            traceback.print_exc()
-            raise ValueError("Invalid base64 encoding") from e
+            except (binascii.Error, ValueError) as e:
+                raise ValueError("The provided URL is not a valid Base64 string") from e
+        else:
+            # Handle the case where the URL is not in Base64 format
+            raise ValueError("The provided URL does not appear to be Base64 encoded")
+
     else:
+        # If not Base64, return the URL as it is
         return encoded_url
 
 
@@ -112,7 +110,7 @@ async def fast_search_malicious_url(request: Request):
 
     try:
         encoded_url = request.query_params.get('url')
-        is_base = request.query_params.get('is_base', 'true').lower() == 'true'
+        is_base = request.query_params.get('is_base')
 
         if not encoded_url:
             total_time = time.time() - start_time  # Total execution time
