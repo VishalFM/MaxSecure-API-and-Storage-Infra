@@ -184,15 +184,15 @@ async def fast_search_malicious_url(request: Request):
         if not encoded_url:
             total_time = time.time() - start_time  # Total execution time
             print(f"Total Execution Time: {total_time:.4f} seconds")
-            return JSONResponse({"status": 0, "error": "URL parameter is required"}, status_code=400)
+            return JSONResponse({"status": 0, "error": "URL parameter is required"}, status_code=201)
 
         try:
             url = decode_url(encoded_url, is_base)
         except ValueError as e:
-            traceback.print_exc()
+            # traceback.print_exc()
             total_time = time.time() - start_time
             print(f"Total Execution Time: {total_time:.4f} seconds")
-            return JSONResponse({"status": 0, "error": str(e)}, status_code=400)
+            return JSONResponse({"status": 0, "error": str(e)}, status_code=201)
 
         md5_hash = get_md5_from_url(url)
         parsed_url = urlparse(url)
