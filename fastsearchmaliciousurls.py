@@ -1,27 +1,24 @@
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import JSONResponse
-from urllib.parse import urlparse
 from datetime import datetime
 import time
 from redis.exceptions import RedisError
 from urllib.parse import urlparse
 import tldextract
 import hashlib
-import base64
-import re
 import requests
+import base64
 import binascii
 import traceback
 import redis.asyncio as redis
-
 
 app = FastAPI()
 
 # Create Redis connection pool
 redis_pool = redis.ConnectionPool(
     host="localhost",  # Update this with your Redis host
-    port=6379,         # Default Redis port
-    db=2,              # Redis database index
+    port=6379,  # Default Redis port
+    db=2,  # Redis database index
     password="Maxsecureredis#$2024",
     decode_responses=True,  # Ensure string decoding
     max_connections=20  # Connection pool size
@@ -30,26 +27,30 @@ redis_client_malicious = redis.Redis(connection_pool=redis_pool)
 
 redis_pool_white = redis.ConnectionPool(
     host="localhost",  # Update this with your Redis host
-    port=6379,         # Default Redis port
-    db=4,              # Redis database index
+    port=6379,  # Default Redis port
+    db=4,  # Redis database index
     password="Maxsecureredis#$2024",
     decode_responses=True,  # Ensure string decoding
     max_connections=20  # Connection pool size
 )
 redis_client_white = redis.Redis(connection_pool=redis_pool_white)
 
+
 def get_md5_from_url(url):
     return hashlib.md5(url.strip().lower().encode('utf-8')).hexdigest()
+
 
 def extract_main_domain(url):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     return domain
 
+
 def get_main_domain(url):
     extracted = tldextract.extract(url)
     main_domain = f"{extracted.domain}.{extracted.suffix}"
     return main_domain
+
 
 async def handle_cached_result(cached_result, source):
     vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
@@ -97,6 +98,8 @@ def check_in_RL_API(url):
         print("Failed to parse the API response as JSON.")
         return 0, "", ""
     '''
+
+
 def check_in_VT_API(url, is_base):
     # print("asdasdasd")
     # print("url > ", url)
@@ -114,7 +117,7 @@ def check_in_VT_API(url, is_base):
     }
 
     try:
-        response = requests.get(api_url, headers=headers,timeout=1.2)
+        response = requests.get(api_url, headers=headers, timeout=1.2)
         response.raise_for_status()
         data = response.json()
 
@@ -139,13 +142,30 @@ def check_in_VT_API(url, is_base):
         return -1
     '''
 
+
 def decode_url(encoded_url, is_base):
-    try:
-        return base64.b64decode(encoded_url).decode('utf-8') if is_base else encoded_url
-    except binascii.Error:
-        raise ValueError("Invalid base64 encoding")
-    except Exception as e:
-        raise ValueError(f"Error decoding URL: {str(e)}")
+    if is_base:
+        try:
+            # Fix padding if necessary
+            missing_padding = len(encoded_url) % 4
+            if missing_padding:
+                encoded_url += '=' * (4 - missing_padding)
+
+            return base64.b64decode(encoded_url).decode('utf-8')
+        except (binascii.Error, ValueError) as e:
+            raise ValueError("Invalid base64 encoding") from e
+    else:
+        return encoded_url
+
+
+#
+# def decode_url(encoded_url, is_base):
+#     try:
+#         return base64.b64decode(encoded_url).decode('utf-8') if is_base else encoded_url
+#     except binascii.Error:
+#         raise ValueError("Invalid base64 encoding")
+#     except Exception as e:
+#         raise ValueError(f"Error decoding URL: {str(e)}")
 
 
 @app.get("/fastSearchMaliciousUrl")
@@ -221,7 +241,8 @@ async def fast_search_malicious_url(request: Request):
                     traceback.print_exc()
                     total_time = time.time() - start_time
                     print(f"Total Execution Time: {total_time:.4f} seconds")
-                    return JSONResponse({"status": 0, "error": f"Error processing cached date: {str(e)}"}, status_code=500)
+                    return JSONResponse({"status": 0, "error": f"Error processing cached date: {str(e)}"},
+                                        status_code=500)
 
         except RedisError as e:
             traceback.print_exc()
@@ -258,6 +279,7 @@ async def fast_search_malicious_url(request: Request):
         total_time = time.time() - start_time
         print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": 0, "error": f"Internal server error: {str(e)}"}, status_code=500)
+
 
 @app.post("/search")
 async def search_endpoint(request: Request):
