@@ -273,8 +273,3 @@ async def fast_search_malicious_url(request: Request):
         total_time = time.time() - start_time
         print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": 0, "error": f"Internal server error: {str(e)}"}, status_code=500)
-
-@app.post("/pingFast")
-async def search_endpoint(request: Request):
-    data = await request.json()
-    return {"message": "Search endpoint is working!", "data": data}
