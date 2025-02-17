@@ -13,6 +13,8 @@ import re
 import requests
 import binascii
 import traceback
+import redis.asyncio as redis
+
 
 app = FastAPI()
 
@@ -25,6 +27,7 @@ redis_pool = Redis(
     decode_responses=True,  # Ensure string decoding
     max_connections=20  # Connection pool size
 )
+redis_client_malicious = redis.Redis(connection_pool=redis_pool)
 
 redis_pool_white = Redis(
     host="localhost",  # Update this with your Redis host
@@ -34,26 +37,28 @@ redis_pool_white = Redis(
     decode_responses=True,  # Ensure string decoding
     max_connections=20  # Connection pool size
 )
+redis_client_white = redis.Redis(connection_pool=redis_pool_white)
 
-def get_md5_from_url(url):
+
+async def get_md5_from_url(url):
     return hashlib.md5(url.strip().lower().encode('utf-8')).hexdigest()
 
-def extract_main_domain(url):
+async def extract_main_domain(url):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     return domain
 
-def get_main_domain(url):
+async def get_main_domain(url):
     extracted = tldextract.extract(url)
     main_domain = f"{extracted.domain}.{extracted.suffix}"
     return main_domain
 
-def handle_cached_result(cached_result, source):
+async def handle_cached_result(cached_result, source):
     vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
     return JSONResponse({"status": 0 if source == 2 else 2, "source": source, "Vendor": vendor, "Score": score}), 200
 
 
-def check_in_RL_API(url):
+async def check_in_RL_API(url):
     api_url = 'https://data.reversinglabs.com/api/networking/url/v1/report/query/json'
     username = 'u/aura/rlapibundle'
     password = 'Yilk3Wcx'
@@ -175,7 +180,7 @@ async def fast_search_malicious_url(request: Request):
         # Check Redis Cache
         try:
             redis_start_time = time.time()
-            maliciours_url_cached_result = await redis_pool.get(md5_hash)
+            maliciours_url_cached_result = await redis_client_malicious.get(md5_hash)
             redis_time_taken = time.time() - redis_start_time
             print(f"Redis Cache Search Execution Time: {redis_time_taken:.4f} seconds")
 
@@ -189,7 +194,7 @@ async def fast_search_malicious_url(request: Request):
                     print(f"Error - {e} \nIssue in Redis value for key - {md5_hash}")
 
             redis_start_time = time.time()
-            white_cached_result = await redis_pool_white.get(md5_domain_url)
+            white_cached_result = await redis_client_white.get(md5_domain_url)
             redis_time_taken = time.time() - redis_start_time
             print(f"Redis White Domain Cache Search Execution Time: {redis_time_taken:.4f} seconds")
 
@@ -213,7 +218,7 @@ async def fast_search_malicious_url(request: Request):
                     parts[-1] = str(last_value + 1)
                     parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
                     updated_cache_value = '|'.join(parts)
-                    await redis_pool.set(md5_domain_url, updated_cache_value)
+                    await redis_client_malicious.set(md5_domain_url, updated_cache_value)
                 except Exception as e:
                     traceback.print_exc()
                     total_time = time.time() - start_time
