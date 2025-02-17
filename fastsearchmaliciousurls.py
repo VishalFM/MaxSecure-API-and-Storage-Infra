@@ -204,7 +204,7 @@ async def fast_search_malicious_url(request: Request):
             redis_start_time = time.time()
             maliciours_url_cached_result = await redis_client_malicious.get(md5_hash)
             redis_time_taken = time.time() - redis_start_time
-            print(f"Redis Cache Search Execution Time: {redis_time_taken:.4f} seconds")
+            # print(f"Redis Cache Search Execution Time: {redis_time_taken:.4f} seconds")
 
             if maliciours_url_cached_result:
                 try:
@@ -218,13 +218,13 @@ async def fast_search_malicious_url(request: Request):
             redis_start_time = time.time()
             white_cached_result = await redis_client_white.get(md5_domain_url)
             redis_time_taken = time.time() - redis_start_time
-            print(f"Redis White Domain Cache Search Execution Time: {redis_time_taken:.4f} seconds")
+            # print(f"Redis White Domain Cache Search Execution Time: {redis_time_taken:.4f} seconds")
 
             if white_cached_result:
                 # Process cached data for white domain
                 try:
                     parts = white_cached_result.split('|')
-                    print(parts)
+                    # print(parts)
                     cache_date_str = parts[3]
                     cache_counter = int(parts[4])
                     cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
@@ -256,7 +256,7 @@ async def fast_search_malicious_url(request: Request):
         rl_start_time = time.time()
         rl_score, _, classification = check_in_RL_API(url)
         rl_time_taken = time.time() - rl_start_time
-        print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
+        # print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
 
         if rl_score >= 4:
             total_time = time.time() - start_time
@@ -267,7 +267,7 @@ async def fast_search_malicious_url(request: Request):
         vt_start_time = time.time()
         vt_score = check_in_VT_API(url, is_base)
         vt_time_taken = time.time() - vt_start_time
-        print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
+        # print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
 
         if vt_score >= 4:
             total_time = time.time() - start_time
