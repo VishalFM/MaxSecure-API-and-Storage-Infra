@@ -61,6 +61,92 @@ async def handle_cached_result(cached_result, source):
     )
 
 
+def check_in_RL_API(url):
+    api_url = 'https://data.reversinglabs.com/api/networking/url/v1/report/query/json'
+    username = 'u/aura/rlapibundle'
+    password = 'Yilk3Wcx'
+    payload = {
+        "rl": {
+            "query": {
+                "url": url,
+                "response_format": "json"
+            }
+        }
+    }
+
+    try:
+        response = requests.post(api_url, json=payload, auth=(username, password), timeout=0.8)
+        response.raise_for_status()
+        data = response.json()
+
+        # Extract statistics
+        statistics = data.get("rl", {}).get("third_party_reputations", {}).get("statistics", {})
+        malicious_count = statistics.get("malicious", 0)
+        suspicious_count = statistics.get("suspicious", 0)
+        classification = data.get("rl", {}).get("classification", "")
+        base64_encoded_url = data.get("rl", {}).get("base64", "")
+
+        # print("base64_encoded_url > ", base64_encoded_url)
+        return malicious_count + suspicious_count, base64_encoded_url, classification
+    except:
+        return -1, "", ""
+    '''
+    except requests.exceptions.Timeout as e:
+        print(f"Request timed out RL: {e}")
+        return -2, "", ""  # Return empty result in case of timeout
+
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred while making the API call: {e}")
+        return 0, "", ""
+    except json.JSONDecodeError:
+        print("Failed to parse the API response as JSON.")
+        return 0, "", ""
+    '''
+
+
+def check_in_VT_API(url, is_base):
+    # print("asdasdasd")
+    # print("url > ", url)
+    if is_base:
+        encoded_url = url
+    else:
+        encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
+
+    api_url = 'https://www.virustotal.com/api/v3/urls/' + encoded_url
+    # print("API URL > ", api_url)
+    api_key = 'ee797f90af81675b63264be149f97fad7a57ae1a9062f16a7096ad3d96072ca3'
+    headers = {
+        "accept": "application/json",
+        "x-apikey": api_key
+    }
+
+    try:
+        response = requests.get(api_url, headers=headers, timeout=1.2)
+        response.raise_for_status()
+        data = response.json()
+
+        # Extract statistics
+        stats = data["data"]["attributes"]["last_analysis_stats"]
+        malicious_count = stats.get("malicious", 0)
+        suspicious_count = stats.get("suspicious", 0)
+        # print("malicious_count > ", malicious_count )
+        # print("suspicious_count > ", suspicious_count )
+        return malicious_count + suspicious_count
+    except:
+        return -1
+    '''
+    except requests.exceptions.Timeout as e:
+        print(f"Request timed out VT: {e}")
+        return -1
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return -1
+    except KeyError as e:
+        print(f"Unexpected response structure: {e}")
+        return -1
+    '''
+
+
 def decode_url(encoded_url, is_base):
     if is_base:
         try:
@@ -97,15 +183,11 @@ async def fast_search_malicious_url(request: Request):
 
     try:
         encoded_url = request.query_params.get('url')
-        if ('#' in encoded_url):
-            parsed_url = urlparse(encoded_url)
-            encoded_url = parsed_url._replace(fragment="").geturl()
-
         is_base = request.query_params.get('is_base', 'true').lower() == 'true'
 
         if not encoded_url:
             total_time = time.time() - start_time  # Total execution time
-            print(f"{encoded_url} : {total_time:.4f} seconds")
+            print(f"Total Execution Time: {total_time:.4f} seconds")
             return JSONResponse({"status": 0, "error": "URL parameter is required"}, status_code=201)
 
         try:
@@ -113,7 +195,7 @@ async def fast_search_malicious_url(request: Request):
         except ValueError as e:
             # traceback.print_exc()
             total_time = time.time() - start_time
-            print(f"{encoded_url} : {total_time:.4f} seconds")
+            print(f"Total Execution Time: {total_time:.4f} seconds")
             return JSONResponse({"status": 0, "error": str(e)}, status_code=201)
 
         md5_hash = get_md5_from_url(url)
@@ -131,7 +213,7 @@ async def fast_search_malicious_url(request: Request):
             if maliciours_url_cached_result:
                 try:
                     total_time = time.time() - start_time
-                    print(f"{encoded_url} : {total_time:.4f} seconds")
+                    print(f"Total Execution Time: {total_time:.4f} seconds")
                     return await handle_cached_result(maliciours_url_cached_result, source=1)
                 except Exception as e:
                     traceback.print_exc()
@@ -151,18 +233,18 @@ async def fast_search_malicious_url(request: Request):
                     cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
                     if not (cache_counter < RESCAN_COUNTER and (current_date - cache_date).days > RESCAN_DAYS):
                         total_time = time.time() - start_time
-                        print(f"{encoded_url} : {total_time:.4f} seconds")
+                        print(f"Total Execution Time: {total_time:.4f} seconds")
                         return await handle_cached_result(white_cached_result, source=2)
 
                     # last_value = int(parts[-1])
                     # parts[-1] = str(last_value + 1)
                     # parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
                     # updated_cache_value = '|'.join(parts)
-                    # await redis_client_white.set(md5_domain_url, updated_cache_value)
+                    #await redis_client_white.set(md5_domain_url, updated_cache_value)
                 except Exception as e:
                     traceback.print_exc()
                     total_time = time.time() - start_time
-                    print(f"{encoded_url} : {total_time:.4f} seconds")
+                    print(f"Total Execution Time: {total_time:.4f} seconds")
                     return JSONResponse({"status": 0, "error": f"Error processing cached date: {str(e)}"},
                                         status_code=500)
 
@@ -199,7 +281,7 @@ async def fast_search_malicious_url(request: Request):
     except Exception as e:
         traceback.print_exc()
         total_time = time.time() - start_time
-        print(f"{encoded_url} : {total_time:.4f} seconds")
+        print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": 0, "error": f"Internal server error: {str(e)}"}, status_code=500)
 
 
