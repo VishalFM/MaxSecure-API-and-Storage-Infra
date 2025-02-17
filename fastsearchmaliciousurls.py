@@ -226,7 +226,7 @@ async def fast_search_malicious_url(request: Request):
 
         # RL API check
         rl_start_time = time.time()
-        rl_score, _, classification = await check_in_RL_API(url)
+        rl_score, _, classification = check_in_RL_API(url)
         rl_time_taken = time.time() - rl_start_time
         print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
 
@@ -237,7 +237,7 @@ async def fast_search_malicious_url(request: Request):
 
         # VT API check
         vt_start_time = time.time()
-        vt_score = await check_in_VT_API(url, is_base)
+        vt_score = check_in_VT_API(url, is_base)
         vt_time_taken = time.time() - vt_start_time
         print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
 
@@ -255,8 +255,6 @@ async def fast_search_malicious_url(request: Request):
         total_time = time.time() - start_time
         print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": 0, "error": f"Internal server error: {str(e)}"}, status_code=500)
-
-
 
 @app.post("/search")
 async def search_endpoint(request: Request):
