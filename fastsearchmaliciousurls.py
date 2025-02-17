@@ -11,6 +11,7 @@ import base64
 import binascii
 import traceback
 import redis.asyncio as redis
+from urllib.parse import urlparse, urlunparse
 
 app = FastAPI()
 
@@ -97,9 +98,9 @@ async def fast_search_malicious_url(request: Request):
 
     try:
         encoded_url = request.query_params.get('url')
-        if ('#' in encoded_url):
+        if '#' in encoded_url:
             parsed_url = urlparse(encoded_url)
-            encoded_url = parsed_url._replace(fragment="").geturl()
+            encoded_url = urlunparse(parsed_url._replace(fragment=''))
 
         is_base = request.query_params.get('is_base', 'true').lower() == 'true'
 
