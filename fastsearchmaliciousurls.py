@@ -203,6 +203,7 @@ async def fast_search_malicious_url(request: Request):
                     updated_cache_value = '|'.join(parts)
                     await redis_pool.set(md5_domain_url, updated_cache_value)
                 except Exception as e:
+                    print(f"error 2: {e}")
                     total_time = time.time() - start_time
                     print(f"Total Execution Time: {total_time:.4f} seconds")
                     return JSONResponse({"status": 0, "error": f"Error processing cached date: {str(e)}"}, status_code=500)
@@ -237,6 +238,7 @@ async def fast_search_malicious_url(request: Request):
         return JSONResponse({"status": -1}, status_code=200)
 
     except Exception as e:
+        print(f"error 1: {e}")
         total_time = time.time() - start_time
         print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": 0, "error": f"Internal server error: {str(e)}"}, status_code=500)
