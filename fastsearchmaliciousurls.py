@@ -12,7 +12,7 @@ import base64
 import re
 import requests
 import binascii
-
+import traceback
 
 app = FastAPI()
 
@@ -153,6 +153,7 @@ async def fast_search_malicious_url(request: Request):
         try:
             url = decode_url(encoded_url, is_base)
         except ValueError as e:
+            traceback.print_exc()
             total_time = time.time() - start_time
             print(f"Total Execution Time: {total_time:.4f} seconds")
             return JSONResponse({"status": 0, "error": str(e)}, status_code=400)
@@ -175,6 +176,7 @@ async def fast_search_malicious_url(request: Request):
                     print(f"Total Execution Time: {total_time:.4f} seconds")
                     return await handle_cached_result(cached_result, source=1)
                 except Exception as e:
+                    traceback.print_exc()
                     print(f"Error - {e} \nIssue in Redis value for key - {md5_hash}")
 
             redis_start_time = time.time()
@@ -203,12 +205,13 @@ async def fast_search_malicious_url(request: Request):
                     updated_cache_value = '|'.join(parts)
                     await redis_pool.set(md5_domain_url, updated_cache_value)
                 except Exception as e:
-                    print(f"error 2: {e}")
+                    traceback.print_exc()
                     total_time = time.time() - start_time
                     print(f"Total Execution Time: {total_time:.4f} seconds")
                     return JSONResponse({"status": 0, "error": f"Error processing cached date: {str(e)}"}, status_code=500)
 
         except RedisError as e:
+            traceback.print_exc()
             print(f"Redis error: {e}")
 
         # RL API check
@@ -238,7 +241,7 @@ async def fast_search_malicious_url(request: Request):
         return JSONResponse({"status": -1}, status_code=200)
 
     except Exception as e:
-        print(f"error 1: {e}")
+        traceback.print_exc()
         total_time = time.time() - start_time
         print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": 0, "error": f"Internal server error: {str(e)}"}, status_code=500)
