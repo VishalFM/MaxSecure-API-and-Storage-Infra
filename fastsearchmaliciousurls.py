@@ -54,7 +54,11 @@ def get_main_domain(url):
 
 async def handle_cached_result(cached_result, source):
     vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
-    return JSONResponse({"status": 0 if source == 2 else 2, "source": source, "Vendor": vendor, "Score": score}), 200
+    # return JSONResponse({"status": 0 if source == 2 else 2, "source": source, "Vendor": vendor, "Score": score}), 200
+    return JSONResponse(
+        {"status": 0 if source == 2 else 2, "source": source, "Vendor": vendor, "Score": score},
+        status_code=200
+    )
 
 
 def check_in_RL_API(url):
