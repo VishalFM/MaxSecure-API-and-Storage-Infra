@@ -38,16 +38,15 @@ redis_pool_white = redis.ConnectionPool(
 )
 redis_client_white = redis.Redis(connection_pool=redis_pool_white)
 
-
-async def get_md5_from_url(url):
+def get_md5_from_url(url):
     return hashlib.md5(url.strip().lower().encode('utf-8')).hexdigest()
 
-async def extract_main_domain(url):
+def extract_main_domain(url):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     return domain
 
-async def get_main_domain(url):
+def get_main_domain(url):
     extracted = tldextract.extract(url)
     main_domain = f"{extracted.domain}.{extracted.suffix}"
     return main_domain
@@ -57,7 +56,7 @@ async def handle_cached_result(cached_result, source):
     return JSONResponse({"status": 0 if source == 2 else 2, "source": source, "Vendor": vendor, "Score": score}), 200
 
 
-async def check_in_RL_API(url):
+def check_in_RL_API(url):
     api_url = 'https://data.reversinglabs.com/api/networking/url/v1/report/query/json'
     username = 'u/aura/rlapibundle'
     password = 'Yilk3Wcx'
