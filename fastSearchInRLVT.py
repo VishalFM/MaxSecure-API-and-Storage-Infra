@@ -1,3 +1,6 @@
+import re
+from app.services.malicious_urls_services import insert_malicious_url
+from config import Config
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import JSONResponse
 from datetime import datetime
@@ -60,7 +63,6 @@ async def handle_cached_result(cached_result, source):
         status_code=200
     )
 
-
 def check_in_RL_API(url):
     api_url = 'https://data.reversinglabs.com/api/networking/url/v1/report/query/json'
     username = 'u/aura/rlapibundle'
@@ -102,7 +104,6 @@ def check_in_RL_API(url):
         print("Failed to parse the API response as JSON.")
         return 0, "", ""
     '''
-
 
 def check_in_VT_API(url, is_base):
     # print("asdasdasd")
@@ -146,20 +147,21 @@ def check_in_VT_API(url, is_base):
         return -1
     '''
 
-
 def decode_url(encoded_url, is_base):
     if is_base:
-        try:
-            # Fix padding if necessary
-            missing_padding = len(encoded_url) % 4
-            if missing_padding:
-                encoded_url += '=' * (4 - missing_padding)
+        # Validate if the URL contains Base64-like structure
+        if re.match(r'^[A-Za-z0-9+/=]+$', encoded_url):  # Match valid Base64 characters
+            try:
+                # Fix padding if necessary
+                missing_padding = len(encoded_url) % 4
+                if missing_padding:
+                    encoded_url += '=' * (4 - missing_padding)
 
-            return base64.b64decode(encoded_url).decode('utf-8')
-        except (binascii.Error, ValueError) as e:
-            raise ValueError("Invalid base64 encoding") from e
-    else:
-        return encoded_url
+                # Attempt Base64 decoding
+                return base64.b64decode(encoded_url).decode('utf-8')
+            except (binascii.Error, ValueError) as e:
+                raise ValueError("The provided URL is not a valid Base64 string") from e
+    return encoded_url
 
 
 #
@@ -172,11 +174,11 @@ def decode_url(encoded_url, is_base):
 #         raise ValueError(f"Error decoding URL: {str(e)}")
 
 current_date = datetime.utcnow().date()
-RESCAN_COUNTER = 10  # Replace with config
-RESCAN_DAYS = 30  # Replace with config
+RESCAN_COUNTER = int(Config.RESCAN_COUNTER)  # Replace with config
+RESCAN_DAYS = int(Config.RESCAN_DAYS)  # Replace with config
 
 
-@app.get("/fastSearchMaliciousUrl")
+@app.get("/fastSearchRLVT")
 async def fast_search_malicious_url(request: Request):
     start_time = time.time()  # Start time log
     print(f"API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -206,20 +208,6 @@ async def fast_search_malicious_url(request: Request):
         # Check Redis Cache
         try:
             redis_start_time = time.time()
-            maliciours_url_cached_result = await redis_client_malicious.get(md5_hash)
-            redis_time_taken = time.time() - redis_start_time
-            # print(f"Redis Cache Search Execution Time: {redis_time_taken:.4f} seconds")
-
-            if maliciours_url_cached_result:
-                try:
-                    total_time = time.time() - start_time
-                    print(f"Total Execution Time: {total_time:.4f} seconds")
-                    return await handle_cached_result(maliciours_url_cached_result, source=1)
-                except Exception as e:
-                    traceback.print_exc()
-                    print(f"Error - {e} \nIssue in Redis value for key - {md5_hash}")
-
-            redis_start_time = time.time()
             white_cached_result = await redis_client_white.get(md5_domain_url)
             redis_time_taken = time.time() - redis_start_time
             # print(f"Redis White Domain Cache Search Execution Time: {redis_time_taken:.4f} seconds")
@@ -236,11 +224,11 @@ async def fast_search_malicious_url(request: Request):
                         print(f"Total Execution Time: {total_time:.4f} seconds")
                         return await handle_cached_result(white_cached_result, source=2)
 
-                    # last_value = int(parts[-1])
-                    # parts[-1] = str(last_value + 1)
-                    # parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
-                    # updated_cache_value = '|'.join(parts)
-                    #await redis_client_white.set(md5_domain_url, updated_cache_value)
+                    last_value = int(parts[-1])
+                    parts[-1] = str(last_value + 1)
+                    parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
+                    updated_cache_value = '|'.join(parts)
+                    await redis_client_white.set(md5_domain_url, updated_cache_value)
                 except Exception as e:
                     traceback.print_exc()
                     total_time = time.time() - start_time
@@ -252,30 +240,32 @@ async def fast_search_malicious_url(request: Request):
             traceback.print_exc()
             print(f"Redis error: {e}")
 
-        # # RL API check
-        # rl_start_time = time.time()
-        # rl_score, _, classification = check_in_RL_API(url)
-        # rl_time_taken = time.time() - rl_start_time
-        # # print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
-        #
-        # if rl_score >= 4:
-        #     total_time = time.time() - start_time
-        #     print(f"Total Execution Time: {total_time:.4f} seconds")
-        #     return JSONResponse({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}, status_code=200)
-        #
-        # # VT API check
-        # vt_start_time = time.time()
-        # vt_score = check_in_VT_API(url, is_base)
-        # vt_time_taken = time.time() - vt_start_time
-        # # print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
-        #
-        # if vt_score >= 4:
-        #     total_time = time.time() - start_time
-        #     print(f"Total Execution Time: {total_time:.4f} seconds")
-        #     return JSONResponse({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}, status_code=200)
-        #
-        # total_time = time.time() - start_time
-        # print(f"Total Execution Time: {total_time:.4f} seconds")
+        # RL API check
+        rl_start_time = time.time()
+        rl_score, _, classification = check_in_RL_API(url)
+        rl_time_taken = time.time() - rl_start_time
+        # print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
+        
+        if rl_score >= 4:
+            insert_malicious_url({"VendorName": "RL", "URL": url, "EntryStatus": 1, "Score": rl_score})
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return JSONResponse({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}, status_code=200)
+        
+        # VT API check
+        vt_start_time = time.time()
+        vt_score = check_in_VT_API(url, is_base)
+        vt_time_taken = time.time() - vt_start_time
+        # print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
+        
+        if vt_score >= 4:
+            insert_malicious_url({"VendorName": "VT", "URL": url, "EntryStatus": 1, "Score": vt_score})
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return JSONResponse({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}, status_code=200)
+        
+        total_time = time.time() - start_time
+        print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": -1}, status_code=200)
 
     except Exception as e:
@@ -283,7 +273,6 @@ async def fast_search_malicious_url(request: Request):
         total_time = time.time() - start_time
         print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": 0, "error": f"Internal server error: {str(e)}"}, status_code=500)
-
 
 @app.post("/search")
 async def search_endpoint(request: Request):
