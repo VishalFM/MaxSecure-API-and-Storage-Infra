@@ -218,7 +218,7 @@ async def fast_search_malicious_url(request: Request):
                     parts[-1] = str(last_value + 1)
                     parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
                     updated_cache_value = '|'.join(parts)
-                    await redis_client_malicious.set(md5_domain_url, updated_cache_value)
+                    await redis_client_white.set(md5_domain_url, updated_cache_value)
                 except Exception as e:
                     traceback.print_exc()
                     total_time = time.time() - start_time
