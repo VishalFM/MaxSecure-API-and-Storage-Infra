@@ -26,6 +26,15 @@ redis_pool = Redis(
     max_connections=20  # Connection pool size
 )
 
+redis_pool_white = Redis(
+    host="localhost",  # Update this with your Redis host
+    port=6379,         # Default Redis port
+    db=4,              # Redis database index
+    password="Maxsecureredis#$2024",
+    decode_responses=True,  # Ensure string decoding
+    max_connections=20  # Connection pool size
+)
+
 def get_md5_from_url(url):
     return hashlib.md5(url.strip().lower().encode('utf-8')).hexdigest()
 
@@ -166,28 +175,28 @@ async def fast_search_malicious_url(request: Request):
         # Check Redis Cache
         try:
             redis_start_time = time.time()
-            cached_result = await redis_pool.get(md5_hash)
+            maliciours_url_cached_result = await redis_pool.get(md5_hash)
             redis_time_taken = time.time() - redis_start_time
             print(f"Redis Cache Search Execution Time: {redis_time_taken:.4f} seconds")
 
-            if cached_result:
+            if maliciours_url_cached_result:
                 try:
                     total_time = time.time() - start_time
                     print(f"Total Execution Time: {total_time:.4f} seconds")
-                    return await handle_cached_result(cached_result, source=1)
+                    return await handle_cached_result(maliciours_url_cached_result, source=1)
                 except Exception as e:
                     traceback.print_exc()
                     print(f"Error - {e} \nIssue in Redis value for key - {md5_hash}")
 
             redis_start_time = time.time()
-            cached_result = await redis_pool.get(md5_domain_url)
+            white_cached_result = await redis_pool_white.get(md5_domain_url)
             redis_time_taken = time.time() - redis_start_time
             print(f"Redis White Domain Cache Search Execution Time: {redis_time_taken:.4f} seconds")
 
-            if cached_result:
+            if white_cached_result:
                 # Process cached data for white domain
                 try:
-                    parts = cached_result.split('|')
+                    parts = white_cached_result.split('|')
                     print(parts)
                     cache_date_str = parts[3]
                     cache_counter = int(parts[4])
@@ -198,7 +207,7 @@ async def fast_search_malicious_url(request: Request):
                     if not (cache_counter < RESCAN_COUNTER and (current_date - cache_date).days > RESCAN_DAYS):
                         total_time = time.time() - start_time
                         print(f"Total Execution Time: {total_time:.4f} seconds")
-                        return await handle_cached_result(cached_result, source=2)
+                        return await handle_cached_result(white_cached_result, source=2)
 
                     last_value = int(parts[-1])
                     parts[-1] = str(last_value + 1)
