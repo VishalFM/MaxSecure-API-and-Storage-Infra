@@ -63,6 +63,8 @@ async def handle_cached_result(cached_result, source):
 
 
 def decode_url(encoded_url, is_base):
+    print(encoded_url)
+    print(is_base)
     if is_base:
         try:
             # Fix padding if necessary
@@ -98,11 +100,6 @@ async def fast_search_malicious_url(request: Request):
 
     try:
         encoded_url = request.query_params.get('url')
-        print("before ", encoded_url)
-        if '#' in encoded_url:
-            parsed_url = urlparse(encoded_url)
-            encoded_url = urlunparse(parsed_url._replace(fragment=''))
-        print("after", encoded_url)
         is_base = request.query_params.get('is_base', 'true').lower() == 'true'
 
         if not encoded_url:
