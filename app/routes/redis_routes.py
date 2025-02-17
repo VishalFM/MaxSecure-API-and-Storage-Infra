@@ -63,47 +63,47 @@ def search_batch():
             # If the signature is found in the "white" cache
             if white_result and white_result.get("status") == 0:
                 results.append(OrderedDict({
-                "md5": md5_signature,
-                "date": current_date,
-                "file_signature": file_signature,
-                "file_type": file_type,
-                "is_cache": True,
-                "malware_status": 0,
-                "threat_name": "WHITE"
+                    "md5": md5_signature,
+                    "date": current_date,
+                    "file_signature": file_signature,
+                    "file_type": file_type,
+                    "is_cache": True,
+                    "malware_status": 0,
+                    "threat_name": "WHITE-CLD"
                 }))
-                response = results
-                return response
             
-            malware_result = search_in_cache(md5_signature, {}, "malware")
-
-            # If the signature is found in the "malware" cache
-            if malware_result and malware_result.get("status") == 1:
-                results.append(OrderedDict({
-                "md5": md5_signature,
-                "date": current_date,
-                "file_signature": file_signature,
-                "file_type": file_type,
-                "is_cache": True,
-                "malware_status": 1,
-                "threat_name": malware_result.get("Spyware Name", "")
-                }))
-                response = results
-                return response
-
             else:
-                results.append(OrderedDict({
-                "md5": md5_signature,
-                "date": current_date,
-                "file_signature": file_signature,
-                "file_type": file_type,
-                "is_cache": False,
-                "malware_status": 2,
-                "threat_name": ""
-                }))
-                response = results
-                return response
+                # Query the malware cache if not found in white cache
+                malware_result = search_in_cache(md5_signature, {}, "malware")
 
-        return jsonify({"message": "No Signature Found"}), 400
+                # If the signature is found in the "malware" cache
+                if malware_result and malware_result.get("status") == 1:
+                    results.append(OrderedDict({
+                        "md5": md5_signature,
+                        "date": current_date,
+                        "file_signature": file_signature,
+                        "file_type": file_type,
+                        "is_cache": True,
+                        "malware_status": 1,
+                        "threat_name": malware_result.get("Spyware Name", "") + "-CLD"
+                    }))
+                else:
+                    results.append(OrderedDict({
+                        "md5": md5_signature,
+                        "date": current_date,
+                        "file_signature": file_signature,
+                        "file_type": file_type,
+                        "is_cache": False,
+                        "malware_status": 2,
+                        "threat_name": ""
+                    }))
+
+        # If no results found for all signatures
+        if not results:
+            return jsonify({"message": "No Signature Found"}), 400
+        
+        # Return the collected results
+        return jsonify(results)
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
