@@ -64,6 +64,9 @@ async def handle_cached_result(cached_result, source):
 
 
 def decode_url(encoded_url, is_base):
+    print(encoded_url)
+    print(is_base)
+
     # Check if the input URL is Base64 encoded (a common check is whether it matches the Base64 pattern)
     def is_base64(s):
         base64_pattern = r'^[A-Za-z0-9+/=]+$'  # Base64 characters pattern
@@ -82,6 +85,7 @@ def decode_url(encoded_url, is_base):
             else:
                 raise ValueError("The provided URL is not a valid Base64 string")
         except (binascii.Error, ValueError) as e:
+            traceback.print_exc()
             raise ValueError("Invalid base64 encoding") from e
     else:
         return encoded_url
