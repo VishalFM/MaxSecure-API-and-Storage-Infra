@@ -188,6 +188,7 @@ async def fast_search_malicious_url(request: Request):
                 # Process cached data for white domain
                 try:
                     parts = cached_result.split('|')
+                    print(parts)
                     cache_date_str = parts[3]
                     cache_counter = int(parts[4])
                     cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
