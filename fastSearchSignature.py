@@ -46,8 +46,28 @@ class SignatureRequest(BaseModel):
     file_type: str = Field(..., description="File type")
 
 async def search_in_cache(md5_signature: str, cache_type: str):
-    client = redis_client_white if cache_type == "white" else redis_client_malware
-    return await client.hgetall(md5_signature) or None
+    redis_cache = redis_client_white if cache_type == "white" else redis_client_malware
+    key_exists = await redis_cache.exists(md5_signature)
+    
+    if key_exists:
+        cache_value = await redis_cache.get(md5_signature)
+        if cache_value:
+            cache_parts = cache_value.split('|')
+            if cache_type == "white":
+                return {
+                    "Spyware Name": cache_parts[0],
+                    "Vendor Name": cache_parts[1],
+                    "Source Name": cache_parts[2],
+                    "status": 0
+                }
+            elif cache_type == "malware":
+                return {
+                    "Spyware Name": cache_parts[0],
+                    "Category": cache_parts[2],
+                    "status": 1
+                }
+    
+    return {"status": 2}
 
 @app.post("/fastSearchSignature")
 async def search_batch(request: Request, signatures: List[SignatureRequest]):
@@ -62,7 +82,7 @@ async def search_batch(request: Request, signatures: List[SignatureRequest]):
         md5_signature = signature.md5.lower()
         
         white_result = await search_in_cache(md5_signature, "white")
-        if white_result and white_result.get("status") == "0":
+        if white_result["status"] == 0:
             results.append(OrderedDict({
                 "md5": md5_signature.upper(),
                 "date": current_date,
@@ -74,7 +94,7 @@ async def search_batch(request: Request, signatures: List[SignatureRequest]):
             }))
         else:
             malware_result = await search_in_cache(md5_signature, "malware")
-            if malware_result and malware_result.get("status") == "1":
+            if malware_result["status"] == 1:
                 results.append(OrderedDict({
                     "md5": md5_signature.upper(),
                     "date": current_date,
