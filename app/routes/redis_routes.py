@@ -89,7 +89,7 @@ def search_batch():
                     }))
                 else:
                     results.append(OrderedDict({
-                        "md5": md5_signature,
+                        "md5": md5_signature.upper(),
                         "date": current_date,
                         "file_signature": file_signature,
                         "file_type": file_type,
