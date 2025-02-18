@@ -98,7 +98,7 @@ class MaliciousUrlRequest(BaseModel):
     url: str
     is_base: bool = False
 
-@app.get("/fastSearchMaliciousUrl")
+@app.post("/fastSearchMaliciousUrl")
 async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
     start_time = time.time()  # Start time log
     print(f"API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
