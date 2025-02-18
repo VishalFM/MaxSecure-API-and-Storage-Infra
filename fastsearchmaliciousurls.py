@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import JSONResponse
-from datetime import datetime
+from datetime import datetime, UTC
 import time
 from redis.exceptions import RedisError
 from urllib.parse import urlparse
@@ -13,6 +13,7 @@ import re
 import traceback
 import redis.asyncio as redis
 from urllib.parse import urlparse, urlunparse
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -89,19 +90,22 @@ def decode_url(encoded_url, is_base):
 #     except Exception as e:
 #         raise ValueError(f"Error decoding URL: {str(e)}")
 
-current_date = datetime.utcnow().date()
+current_date = datetime.now(UTC).date()
 RESCAN_COUNTER = 10  # Replace with config
 RESCAN_DAYS = 30  # Replace with config
 
+class MaliciousUrlRequest(BaseModel):
+    url: str
+    is_base: bool = False
 
 @app.get("/fastSearchMaliciousUrl")
-async def fast_search_malicious_url(request: Request):
+async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
     start_time = time.time()  # Start time log
     print(f"API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
-        encoded_url = request.query_params.get('url')
-        is_base = request.query_params.get('is_base')
+        encoded_url = request_data.url
+        is_base = request_data.is_base
 
         if not encoded_url:
             total_time = time.time() - start_time  # Total execution time
