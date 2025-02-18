@@ -99,13 +99,13 @@ class MaliciousUrlRequest(BaseModel):
     is_base: bool = False
 
 @app.get("/fastSearchMaliciousUrl")
-async def fast_search_malicious_url(request: Request):
+async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
     start_time = time.time()  # Start time log
     print(f"API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
-        encoded_url = request.query_params.get('url')
-        is_base = request.query_params.get('is_base')
+        encoded_url = request_data.url
+        is_base = request_data.is_base
 
         if not encoded_url:
             total_time = time.time() - start_time  # Total execution time
