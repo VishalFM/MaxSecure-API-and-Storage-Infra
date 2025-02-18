@@ -63,7 +63,7 @@ def search_batch():
             # If the signature is found in the "white" cache
             if white_result and white_result.get("status") == 0:
                 results.append(OrderedDict({
-                    "md5": md5_signature,
+                    "md5": md5_signature.upper(),
                     "date": current_date,
                     "file_signature": file_signature,
                     "file_type": file_type,
@@ -79,7 +79,7 @@ def search_batch():
                 # If the signature is found in the "malware" cache
                 if malware_result and malware_result.get("status") == 1:
                     results.append(OrderedDict({
-                        "md5": md5_signature,
+                        "md5": md5_signature.upper(),
                         "date": current_date,
                         "file_signature": file_signature,
                         "file_type": file_type,
