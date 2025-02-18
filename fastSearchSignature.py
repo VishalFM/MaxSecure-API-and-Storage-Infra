@@ -8,31 +8,37 @@ from typing import List
 
 app = FastAPI()
 
-# Redis connection setup (async version)
-async def get_redis_clients():
-    redis_client_white = redis.Redis(
-        host="localhost",  # Update this with your Redis host
-        port=6379,
-        db=0,
-        password="Maxsecureredis#$2024",
-        decode_responses=True
-    )
-    
-    redis_client_malware = redis.Redis(
-        host="localhost",
-        port=6379,
-        db=1,
-        password="Maxsecureredis#$2024",
-        decode_responses=True
-    )
-    
-    return redis_client_white, redis_client_malware
+# Redis clients (will be initialized in startup event)
+redis_client_white = None
+redis_client_malware = None
 
-# Initialize Redis clients globally in an async startup event
+async def get_redis_clients():
+    return (
+        redis.Redis(
+            host="localhost",
+            port=6379,
+            db=0,
+            password="Maxsecureredis#$2024",
+            decode_responses=True
+        ),
+        redis.Redis(
+            host="localhost",
+            port=6379,
+            db=1,
+            password="Maxsecureredis#$2024",
+            decode_responses=True
+        )
+    )
+
 @app.on_event("startup")
 async def startup():
     global redis_client_white, redis_client_malware
     redis_client_white, redis_client_malware = await get_redis_clients()
+
+@app.on_event("shutdown")
+async def shutdown():
+    await redis_client_white.close()
+    await redis_client_malware.close()
 
 class SignatureRequest(BaseModel):
     md5: str = Field(..., description="MD5 hash of the file")
@@ -41,21 +47,17 @@ class SignatureRequest(BaseModel):
 
 async def search_in_cache(md5_signature: str, cache_type: str):
     client = redis_client_white if cache_type == "white" else redis_client_malware
-    result = await client.hgetall(md5_signature)
-    return result if result else None
+    return await client.hgetall(md5_signature) or None
 
 @app.post("/fastSearchSignature")
-async def search_batch(
-    request: Request,
-    signatures: List[SignatureRequest]
-):
+async def search_batch(request: Request, signatures: List[SignatureRequest]):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=400, detail="Unauthorized")
-    
+
     results = []
     current_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    
+
     for signature in signatures:
         md5_signature = signature.md5.lower()
         
@@ -92,8 +94,8 @@ async def search_batch(
                     "malware_status": 2,
                     "threat_name": ""
                 }))
-    
+
     if not results:
         raise HTTPException(status_code=400, detail="No Signature Found")
-    
+
     return JSONResponse(content=results)
