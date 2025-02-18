@@ -43,7 +43,7 @@ async def shutdown():
 class SignatureRequest(BaseModel):
     md5: str = Field(..., description="MD5 hash of the file")
     file_signature: str = Field(..., description="File signature")
-    file_type: str = Field(..., description="File type")
+    file_type: int = Field(..., description="File type")
 
 async def search_in_cache(md5_signature: str, cache_type: str):
     redis_cache = redis_client_white if cache_type == "white" else redis_client_malware
