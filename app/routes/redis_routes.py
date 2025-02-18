@@ -23,7 +23,6 @@ app = FastAPI()
 @search_bp.route('/search', methods=['POST'])
 def search_batch():
     try:
-        print("Reachable")
          # Extract Authorization header
         auth_header = request.headers.get('Authorization')
         
@@ -47,7 +46,7 @@ def search_batch():
         results = []
 
         for signature in request_data:
-            md5_signature = signature.get('md5')
+            md5_signature = signature.get('md5').lower()
             file_signature = signature.get('file_signature')
             file_type = signature.get('file_type')
 
@@ -99,12 +98,11 @@ def search_batch():
                         "threat_name": ""
                     }))
 
-        print("Ended ")
+        
         # If no results found for all signatures
         if not results:
             return jsonify({"message": "No Signature Found"}), 400
         
-        print("Ended ")
         # Return the collected results
         return jsonify(results)
 
