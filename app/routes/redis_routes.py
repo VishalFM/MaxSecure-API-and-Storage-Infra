@@ -16,7 +16,7 @@ from config import Config
 from collections import OrderedDict
 from fastapi import FastAPI
 import jwt
-from jwt import ExpiredSignatureError, InvalidTokenError
+from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 
 search_bp = Blueprint('search', __name__)
 redis_service = RedisService()
