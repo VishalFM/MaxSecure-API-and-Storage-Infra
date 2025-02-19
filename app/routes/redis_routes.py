@@ -15,6 +15,8 @@ from app.utils.parse_url import extract_main_domain, get_main_domain, get_md5_fr
 from config import Config
 from collections import OrderedDict
 from fastapi import FastAPI
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 
 search_bp = Blueprint('search', __name__)
 redis_service = RedisService()
@@ -131,12 +133,47 @@ def handle_cached_result(cached_result, source):
     vendor, score = cached_result.split('|')[2], cached_result.split('|')[1]
     return jsonify({"status": 0 if source == 2 else 2, "source": source, "Vendor": vendor, "Score": score}), 200
 
+def verify_jwt(token: str, public_key: str, algorithms=['RS256']):
+    try:
+        decoded_token = jwt.decode(token, public_key, algorithms=algorithms)
+        print("JWT is valid.")
+        return decoded_token
+    except ExpiredSignatureError:
+        print("JWT has expired.")
+    except InvalidTokenError:
+        print("JWT is invalid.")
+    return None
+
+# Example usage
+public_key = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArwrUNz1SYfuusvyKrXE6
+zk6lHq8bhJvDQLcHbtQ838bogBnY27bQJ64QXiJN0ZgGJ7+4eyg8tgZ/4k4iYjUn
+OarEDKkuYjUpOX/z9TXrmkX+rv/khRJ5iCh5YTH+uXGanJr4xhOsPH9PTOFKiOyh
+DKroxHkhpUF0odNeO3pdPXyj1MgUicG0JgWDvYSY0ta2+56z9Vm4YAaehLTCd8yo
+58tBvguBqXQNN+fQtG+6J6+nAOZm+1Pve59OrkF9Jm3stFlp6kBU3GsXvvMHsjET
+qdnXPxtgSIyle94vee/PXpHE9h6Vw+ok3Q8e9ddE+BzhD4bpyxvlxd6zm40oJdHx
+pwIDAQAB
+-----END PUBLIC KEY-----"""
+
+# token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImRlZmF1bHQifQ.eyJpYXQiOjE3MzkyNzgxNzUsIm5iZiI6MTczOTI3ODE3NSwiZXhwIjoxNzM5Mjc4NDc1LCJzdWIiOiI2ZTA2ZGMxMC03NjBjLTRjMDgtODQ2NC02MWM0ZDhkMmY0NmEiLCJqdGkiOiI5N2NlMjY5OS0xMzA5LTQ5MmItODg0Mi1hZGRmYzg1NTg5NjAiLCJhbGlhcyI6InVhdi1xYS0wMTBAYW5jaG9yZnJlZS5jb20iLCJhZ2VudCI6eyJhcGlfa2V5IjoidWx0cmF2cG5fYmFja2VuZCIsInVzZXJfYWdlbnQiOiJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCA1LjE7IHJ2OjMxLjApIEFwcGxlV2ViS2l0LzUzNy4zNiAoS0hUTUwsIGxpa2UgR2Vja28pIENocm9tZS80NC4wLjI0MDMuODkgU2FmYXJpLzUzNy4zNiIsInJvbGVfbmFtZSI6InVsdHJhdnBuOmJhY2tlbmQiLCJpcCI6IjU0LjIxNS4yMjQuNjMiLCJpc19tYXNxdWVyYWRlIjp0cnVlfSwiYXVyYXN2YzpzZXNzaW9uX2lkIjoiOWJkNzI4NWItZDgzNi00MDgyLWEyNDAtMjQ3NWY0MzBiM2NmIiwiYXVyYXN2YzpkaXJlY3Rvcnlfa2V5IjoidWx0cmF2cG4iLCJhdXJhc3ZjOmVudGl0bGVtZW50cyI6eyJ2cG46ZGV2aWNlX2xpbWl0IjoxMCwiaXRwczpkYXJrX3dlYl9zY2FucyI6MjAwMDAwMCwiYXY6c2Nhbl90eXBlcyI6WyJzbWFydCIsImZ1bGwiLCJjdXN0b20iXSwiYXY6ZmVhdHVyZXMiOlsib25fYWNjZXNzIiwic2NoZWR1bGVkIiwib25fZGVtYW5kIiwiZ2FtZV9tb2RlIl0sImF2OmRldmljZV9saW1pdCI6MjB9LCJhdXJhc3ZjOnJvbGUiOiJ1bHRyYXZwbjpzZXNzaW9uIn0.OO82HjGFOaD6KnFd1CtSijklcqpxrf3zA_9u9rtoytnBxaLrCh4Rw4UqCGSZk8c0DK1sMMQo4LfQPC_ZMac-IS1VNA1KcvXBAFfGzaDjFxfUdf8lWBzc8HcfE1DPoQDyi8eInL7mb8LV_48d_A4WTJu9oNSfiY2dMOyOrqRJSiHF-pvh4BuzifIS-YogGDzUyjhVGukLPr8WQhq6XcFqn5zIAVQRtr6ajEg0pPZW6Boy0DAXunKIW8lBPM5WE7jlHTJNe-UDitKGMTrL30B5TfXH-rvBv7kvCtLH6hpxqtIo1o5RQYGjMnU2KrBbrc7AsRh-43ohwBK7EAse9dZ2cg"
+
 @search_bp.route('/searchMaliciousUrl', methods=['GET'])
 def search_malicious_url():
     start_time = time.time()  # Start time log
     print(f"API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"status": 0, "error": "Unauthorized"}), 401
+
+        token = auth_header.split(" ")[1]  # Extract token after "Bearer "
+        verified_data = verify_jwt(token, public_key)
+
+        # If verification fails, return the error response
+        if isinstance(verified_data, tuple):
+            return jsonify(verified_data[0]), verified_data[1]
+
         encoded_url = request.args.get('url')
         is_base = request.args.get('is_base', default='true', type=str).lower() == 'true'
 
