@@ -14,6 +14,7 @@ import traceback
 import redis.asyncio as redis
 from urllib.parse import urlparse, urlunparse
 from pydantic import BaseModel
+import httpx
 
 app = FastAPI()
 
@@ -81,14 +82,79 @@ def decode_url(encoded_url, is_base):
     return encoded_url
 
 
-#
-# def decode_url(encoded_url, is_base):
-#     try:
-#         return base64.b64decode(encoded_url).decode('utf-8') if is_base else encoded_url
-#     except binascii.Error:
-#         raise ValueError("Invalid base64 encoding")
-#     except Exception as e:
-#         raise ValueError(f"Error decoding URL: {str(e)}")
+
+
+async def check_in_RL_API(url):
+    api_url = 'https://data.reversinglabs.com/api/networking/url/v1/report/query/json'
+    username = 'u/aura/rlapibundle'
+    password = 'Yilk3Wcx'
+    payload = {
+        "rl": {
+            "query": {
+                "url": url,
+                "response_format": "json"
+            }
+        }
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=0.8) as client:
+            response = await client.post(api_url, json=payload, auth=(username, password))
+            response.raise_for_status()
+            data = response.json()
+
+            # Extract statistics
+            statistics = data.get("rl", {}).get("third_party_reputations", {}).get("statistics", {})
+            malicious_count = statistics.get("malicious", 0)
+            suspicious_count = statistics.get("suspicious", 0)
+            classification = data.get("rl", {}).get("classification", "")
+            base64_encoded_url = data.get("rl", {}).get("base64", "")
+
+            return malicious_count + suspicious_count, base64_encoded_url, classification
+    except httpx.TimeoutException:
+        print("RL API request timed out")
+        return -2, "", ""
+    except httpx.RequestError as e:
+        print(f"RL API request failed: {e}")
+        return 0, "", ""
+    except Exception as e:
+        print(f"Unexpected error in RL API: {e}")
+        return 0, "", ""
+
+async def check_in_VT_API(url, is_base):
+    if is_base:
+        encoded_url = url
+    else:
+        encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
+
+    api_url = f'https://www.virustotal.com/api/v3/urls/{encoded_url}'
+    api_key = 'ee797f90af81675b63264be149f97fad7a57ae1a9062f16a7096ad3d96072ca3'
+    headers = {
+        "accept": "application/json",
+        "x-apikey": api_key
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=1.2) as client:
+            response = await client.get(api_url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+            # Extract statistics
+            stats = data["data"]["attributes"]["last_analysis_stats"]
+            malicious_count = stats.get("malicious", 0)
+            suspicious_count = stats.get("suspicious", 0)
+
+            return malicious_count + suspicious_count
+    except httpx.TimeoutException:
+        print("VT API request timed out")
+        return -1
+    except httpx.RequestError as e:
+        print(f"VT API request failed: {e}")
+        return -1
+    except KeyError as e:
+        print(f"Unexpected response structure: {e}")
+        return -1
 
 current_date = datetime.now(UTC).date()
 RESCAN_COUNTER = 10  # Replace with config
@@ -158,11 +224,11 @@ async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
                         print(f"{encoded_url} : {total_time:.4f} seconds")
                         return await handle_cached_result(white_cached_result, source=2)
 
-                    # last_value = int(parts[-1])
-                    # parts[-1] = str(last_value + 1)
-                    # parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
-                    # updated_cache_value = '|'.join(parts)
-                    # await redis_client_white.set(md5_domain_url, updated_cache_value)
+                    last_value = int(parts[-1])
+                    parts[-1] = str(last_value + 1)
+                    parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
+                    updated_cache_value = '|'.join(parts)
+                    await redis_client_white.set(md5_domain_url, updated_cache_value)
                 except Exception as e:
                     traceback.print_exc()
                     total_time = time.time() - start_time
@@ -174,30 +240,30 @@ async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
             traceback.print_exc()
             print(f"Redis error: {e}")
 
-        # # RL API check
-        # rl_start_time = time.time()
-        # rl_score, _, classification = check_in_RL_API(url)
-        # rl_time_taken = time.time() - rl_start_time
-        # # print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
-        #
-        # if rl_score >= 4:
-        #     total_time = time.time() - start_time
-        #     print(f"Total Execution Time: {total_time:.4f} seconds")
-        #     return JSONResponse({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}, status_code=200)
-        #
-        # # VT API check
-        # vt_start_time = time.time()
-        # vt_score = check_in_VT_API(url, is_base)
-        # vt_time_taken = time.time() - vt_start_time
-        # # print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
-        #
-        # if vt_score >= 4:
-        #     total_time = time.time() - start_time
-        #     print(f"Total Execution Time: {total_time:.4f} seconds")
-        #     return JSONResponse({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}, status_code=200)
-        #
-        # total_time = time.time() - start_time
-        # print(f"Total Execution Time: {total_time:.4f} seconds")
+        # RL API check
+        rl_start_time = time.time()
+        rl_score, _, classification = await check_in_RL_API(url)
+        rl_time_taken = time.time() - rl_start_time
+        # print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
+        
+        if rl_score >= 4:
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return JSONResponse({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}, status_code=200)
+        
+        # VT API check
+        vt_start_time = time.time()
+        vt_score = await check_in_VT_API(url, is_base)
+        vt_time_taken = time.time() - vt_start_time
+        # print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
+        
+        if vt_score >= 4:
+            total_time = time.time() - start_time
+            print(f"Total Execution Time: {total_time:.4f} seconds")
+            return JSONResponse({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}, status_code=200)
+        
+        total_time = time.time() - start_time
+        print(f"Total Execution Time: {total_time:.4f} seconds")
         return JSONResponse({"status": -1}, status_code=200)
 
     except Exception as e:
