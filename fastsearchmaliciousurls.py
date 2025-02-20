@@ -255,18 +255,19 @@ async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
         
         # VT API check
         vt_start_time = time.time()
-        vt_score = await check_in_VT_API(url, is_base)
-        vt_time_taken = time.time() - vt_start_time
-        # print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
-        
-        if vt_score >= 4:
+        try:
+            vt_score = await check_in_VT_API(url, is_base)
+            vt_time_taken = time.time() - vt_start_time
+            # print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
+            
+            if vt_score >= 4:
+                total_time = time.time() - start_time
+                print(f"Total Execution Time: {total_time:.4f} seconds")
+                return JSONResponse({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}, status_code=200)
+        except Exception as e:    
             total_time = time.time() - start_time
             print(f"Total Execution Time: {total_time:.4f} seconds")
-            return JSONResponse({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}, status_code=200)
-        
-        total_time = time.time() - start_time
-        print(f"Total Execution Time: {total_time:.4f} seconds")
-        return JSONResponse({"status": -1}, status_code=200)
+            return JSONResponse({"status": -1}, status_code=200)
 
     except Exception as e:
         traceback.print_exc()
