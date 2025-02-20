@@ -16,6 +16,8 @@ from urllib.parse import urlparse, urlunparse
 from pydantic import BaseModel
 import httpx
 
+from config import Config
+
 app = FastAPI()
 
 # Create Redis connection pool
@@ -85,9 +87,9 @@ def decode_url(encoded_url, is_base):
 
 
 async def check_in_RL_API(url):
-    api_url = 'https://data.reversinglabs.com/api/networking/url/v1/report/query/json'
-    username = 'u/aura/rlapibundle'
-    password = 'Yilk3Wcx'
+    api_url = Config.RL_ENDPOINT
+    username = Config.RL_USERNAME
+    password = Config.RL_PASSWORD
     payload = {
         "rl": {
             "query": {
@@ -127,8 +129,8 @@ async def check_in_VT_API(url, is_base):
     else:
         encoded_url = base64.b64encode(url.encode('utf-8')).decode('utf-8').rstrip("=")
 
-    api_url = f'https://www.virustotal.com/api/v3/urls/{encoded_url}'
-    api_key = 'ee797f90af81675b63264be149f97fad7a57ae1a9062f16a7096ad3d96072ca3'
+    api_url = Config.VT_ENDPOINT + encoded_url
+    api_key = Config.VT_KEY
     headers = {
         "accept": "application/json",
         "x-apikey": api_key
