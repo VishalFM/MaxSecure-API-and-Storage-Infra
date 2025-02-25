@@ -169,23 +169,24 @@ class MaliciousUrlRequest(BaseModel):
 @app.post("/fastSearchMaliciousUrl")
 async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
     start_time = time.time()  # Start time log
-    print(f"API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[DEBUG] API started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
         encoded_url = request_data.url
         is_base = request_data.is_base
+        print(f"[DEBUG] Received URL: {encoded_url}, is_base: {is_base}")
 
         if not encoded_url:
             total_time = time.time() - start_time  # Total execution time
-            print(f"{encoded_url} : {total_time:.4f} seconds")
+            print(f"[ERROR] URL parameter is missing. Execution time: {total_time:.4f} seconds")
             return JSONResponse({"status": 0, "error": "URL parameter is required"}, status_code=201)
 
         try:
             url = decode_url(encoded_url, is_base)
+            print(f"[DEBUG] Decoded URL: {url}")
         except ValueError as e:
-            # traceback.print_exc()
             total_time = time.time() - start_time
-            print(f"{encoded_url} : {total_time:.4f} seconds")
+            print(f"[ERROR] Decoding failed: {str(e)} | Execution Time: {total_time:.4f} seconds")
             return JSONResponse({"status": 0, "error": str(e)}, status_code=201)
 
         md5_hash = get_md5_from_url(url)
@@ -193,17 +194,19 @@ async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
         domain_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
         md5_domain_url = get_md5_from_url(domain_url)
 
+        print(f"[DEBUG] MD5 URL Hash: {md5_hash}, MD5 Domain Hash: {md5_domain_url}")
+
         # Check Redis Cache
         try:
             redis_start_time = time.time()
             maliciours_url_cached_result = await redis_client_malicious.get(md5_hash)
             redis_time_taken = time.time() - redis_start_time
-            # print(f"Redis Cache Search Execution Time: {redis_time_taken:.4f} seconds")
+            print(f"[DEBUG] Redis Cache Lookup Execution Time: {redis_time_taken:.4f} seconds")
 
             if maliciours_url_cached_result:
                 try:
                     total_time = time.time() - start_time
-                    print(f"{encoded_url} : {total_time:.4f} seconds")
+                    print(f"[DEBUG] Found in malicious Redis cache. Execution time: {total_time:.4f} seconds")
                     return await handle_cached_result(maliciours_url_cached_result, source=1)
                 except Exception as e:
                     traceback.print_exc()
@@ -212,18 +215,20 @@ async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
             redis_start_time = time.time()
             white_cached_result = await redis_client_white.get(md5_domain_url)
             redis_time_taken = time.time() - redis_start_time
-            # print(f"Redis White Domain Cache Search Execution Time: {redis_time_taken:.4f} seconds")
+            print(f"[DEBUG] Redis White Cache Lookup Execution Time: {redis_time_taken:.4f} seconds")
 
             if white_cached_result:
-                # Process cached data for white domain
                 try:
                     parts = white_cached_result.split('|')
                     cache_date_str = parts[3]
                     cache_counter = int(parts[4])
                     cache_date = datetime.strptime(cache_date_str, '%Y-%m-%d').date()
+
+                    print(f"[DEBUG] White cache found. Counter: {cache_counter}, Cache Date: {cache_date}")
+
                     if not (cache_counter < RESCAN_COUNTER and (current_date - cache_date).days > RESCAN_DAYS):
                         total_time = time.time() - start_time
-                        print(f"{encoded_url} : {total_time:.4f} seconds")
+                        print(f"[DEBUG] Returning cached white list result. Execution time: {total_time:.4f} seconds")
                         return await handle_cached_result(white_cached_result, source=2)
 
                     last_value = int(parts[-1])
@@ -231,46 +236,45 @@ async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
                     parts[-2] = datetime.utcnow().strftime('%Y-%m-%d')
                     updated_cache_value = '|'.join(parts)
                     await redis_client_white.set(md5_domain_url, updated_cache_value)
+                    print(f"[DEBUG] White cache updated.")
                 except Exception as e:
-                    traceback.print_exc()
                     total_time = time.time() - start_time
-                    print(f"{encoded_url} : {total_time:.4f} seconds")
-                    return JSONResponse({"status": 0, "error": f"Error processing cached date: {str(e)}"},
-                                        status_code=500)
+                    print(f"[ERROR] Processing cached date failed: {str(e)} | Execution Time: {total_time:.4f} seconds")
+                    return JSONResponse({"status": 0, "error": f"Error processing cached date: {str(e)}"}, status_code=500)
 
         except RedisError as e:
-            traceback.print_exc()
-            print(f"Redis error: {e}")
+            print(f"[ERROR] Redis error: {e}")
 
         # RL API check
+        print(f"[DEBUG] Checking RL API for URL: {url}")
         rl_start_time = time.time()
         rl_score, _, classification = await check_in_RL_API(url)
         rl_time_taken = time.time() - rl_start_time
-        # print(f"RL API Execution Time: {rl_time_taken:.4f} seconds")
-        
+        print(f"[DEBUG] RL API Execution Time: {rl_time_taken:.4f} seconds, Score: {rl_score}")
+
         if rl_score >= 4:
             total_time = time.time() - start_time
-            print(f"Total Execution Time: {total_time:.4f} seconds")
+            print(f"[DEBUG] RL API detected malicious URL. Execution time: {total_time:.4f} seconds")
             return JSONResponse({"status": 2, "source": 3, "Vendor": "RL", "Score": rl_score}, status_code=200)
-        
+
         # VT API check
+        print(f"[DEBUG] Checking VT API for URL: {url}")
         vt_start_time = time.time()
         try:
             vt_score = await check_in_VT_API(url, is_base)
             vt_time_taken = time.time() - vt_start_time
-            # print(f"VT API Execution Time: {vt_time_taken:.4f} seconds")
-            
+            print(f"[DEBUG] VT API Execution Time: {vt_time_taken:.4f} seconds, Score: {vt_score}")
+
             if vt_score >= 4:
                 total_time = time.time() - start_time
-                print(f"Total Execution Time: {total_time:.4f} seconds")
+                print(f"[DEBUG] VT API detected malicious URL. Execution time: {total_time:.4f} seconds")
                 return JSONResponse({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}, status_code=200)
         except Exception as e:    
             total_time = time.time() - start_time
-            print(f"Total Execution Time: {total_time:.4f} seconds")
+            print(f"[ERROR] VT API failed: {e} | Execution time: {total_time:.4f} seconds")
             return JSONResponse({"status": -1}, status_code=200)
 
     except Exception as e:
-        traceback.print_exc()
         total_time = time.time() - start_time
-        print(f"{encoded_url} : {total_time:.4f} seconds")
+        print(f"[ERROR] Internal server error: {str(e)} | Execution time: {total_time:.4f} seconds")
         return JSONResponse({"status": 0, "error": f"Internal server error: {str(e)}"}, status_code=500)
