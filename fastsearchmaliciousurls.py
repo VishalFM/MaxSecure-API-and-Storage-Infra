@@ -269,6 +269,8 @@ async def fast_search_malicious_url(request_data: MaliciousUrlRequest):
                 total_time = time.time() - start_time
                 print(f"[DEBUG] VT API detected malicious URL. Execution time: {total_time:.4f} seconds")
                 return JSONResponse({"status": 2, "source": 4, "Vendor": "VT", "Score": vt_score}, status_code=200)
+            else :
+                return JSONResponse({"status": -1}, status_code=200)    
         except Exception as e:    
             total_time = time.time() - start_time
             print(f"[ERROR] VT API failed: {e} | Execution time: {total_time:.4f} seconds")
